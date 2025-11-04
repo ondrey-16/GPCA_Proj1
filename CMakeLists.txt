@@ -13,6 +13,8 @@ find_package(Qt5 REQUIRED COMPONENTS Widgets)
 
 add_executable(Shoal_Fish_Animation
         src/main.cpp
-        src/gui/mainWindow.cpp)
+        src/gui/mainWindow.cpp
+        src/model/Vector.cpp
+        src/model/Vector.h)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets)

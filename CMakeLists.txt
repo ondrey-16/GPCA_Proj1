@@ -15,6 +15,8 @@ add_executable(Shoal_Fish_Animation
         src/main.cpp
         src/gui/mainWindow.cpp
         src/model/Vector.cpp
-        src/model/Vector.h)
+        src/model/Vector.h
+        src/model/Fish.cpp
+        src/model/Fish.h)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets)

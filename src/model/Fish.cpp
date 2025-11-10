@@ -18,7 +18,7 @@ void Fish::applyForce(const Vector &force) {
 }
 
 Vector Fish::separate(const std::vector<Fish> &fishes) const {
-    float desiredSeparation = 20;
+    float desiredSeparation = 10;
     Vector steer(0, 0);
     int count = 0;
 
@@ -46,12 +46,12 @@ Vector Fish::separate(const std::vector<Fish> &fishes) const {
 }
 
 Vector Fish::align(const std::vector<Fish> &fishes) const {
-    float neigbordist = 50.0;
+    float neighborDist = 50.0;
     Vector sum(0, 0);
     int count = 0;
     for (auto fish : fishes) {
         float dist = location.distance(fish.location);
-        if ((dist > 0) && (dist < neigbordist)) {
+        if ((dist > 0) && (dist < neighborDist)) {
             sum = sum + fish.velocity;
             count++;
         }
@@ -69,12 +69,12 @@ Vector Fish::align(const std::vector<Fish> &fishes) const {
 }
 
 Vector Fish::cohere(const std::vector<Fish> &fishes) {
-    float neigbordist = 50;
+    float neighborDist = 50.0;
     Vector sum(0, 0);
     int count = 0;
     for (auto fish : fishes) {
         float dist = location.distance(fish.location);
-        if ((dist > 0) && (dist < neigbordist)) {
+        if ((dist > 0) && (dist < neighborDist)) {
             sum = sum + fish.location;
             count++;
         }
@@ -122,14 +122,22 @@ void Fish::flock(const std::vector<Fish> &fishes) {
 }
 
 void Fish::borders() {
-    if (location.x < 0)
-        location.x += 2000;
-    if (location.y < 0)
-        location.y += 1200;
-    if (location.x > 2000)
+    if (location.x < 0) {
+        location.x = 2000;
+        location.y = 1200 - location.y;
+    }
+    if (location.y < 0) {
+        location.y = 1200;
+        location.x = 2000 - location.x;
+    }
+    if (location.x > 2000) {
         location.x = 0;
-    if (location.y > 1200)
+        location.y = 1200 - location.y;
+    }
+    if (location.y > 1200) {
         location.y = 0;
+        location.x = 2000 - location.x;
+    }
 }
 
 float Fish::angle(const Vector &v) {

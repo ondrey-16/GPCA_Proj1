@@ -10,6 +10,7 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
+find_package(SFML 2.6 COMPONENTS graphics window system REQUIRED)
 
 add_executable(Shoal_Fish_Animation
         src/main.cpp
@@ -17,6 +18,11 @@ add_executable(Shoal_Fish_Animation
         src/model/Vector.cpp
         src/model/Vector.h
         src/model/Fish.cpp
-        src/model/Fish.h)
+        src/model/Fish.h
+        src/gui/FishCanvas.cpp
+        src/gui/FishCanvas.h
+        src/gui/SFMLCanvas.cpp
+        src/gui/SFMLCanvas.h)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets)
+target_link_libraries(${PROJECT_NAME} PRIVATE sfml-graphics sfml-window sfml-system)

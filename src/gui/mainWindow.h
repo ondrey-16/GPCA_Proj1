@@ -7,6 +7,7 @@
 
 #include <QMainWindow>
 #include <QLabel>
+#include "FishCanvas.h"
 
 
 QT_BEGIN_NAMESPACE
@@ -22,12 +23,11 @@ class mainWindow : public QMainWindow {
 
 public:
     explicit mainWindow(QWidget *parent = nullptr);
-    void resizeEvent(QResizeEvent *event) override;
     ~mainWindow() override;
 
 private:
     Ui::mainWindow *ui;
-    QLabel* bitmap;
+    FishCanvas* canvas;
 };
 
 

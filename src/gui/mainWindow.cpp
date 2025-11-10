@@ -11,20 +11,12 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::mainWi
     this->setWindowTitle("Shoal Fish Animation");
     this->resize(2000, 1200);
 
-    bitmap = new QLabel(this);
-    bitmap->setGeometry(0, 0, this->width(), this->height());
-    bitmap->setStyleSheet("background-color: blue");
-}
-
-void mainWindow::resizeEvent(QResizeEvent *event) {
-    QMainWindow::resizeEvent(event);
-
-    if (bitmap) {
-        bitmap->resize(this->width(), this->height());
-    }
+    canvas = new FishCanvas(this);
+    canvas->setGeometry(0, 0, this->width(), this->height());
+    setCentralWidget(canvas);
 }
 
 mainWindow::~mainWindow() {
     delete ui;
-    delete bitmap;
+    delete canvas;
 }

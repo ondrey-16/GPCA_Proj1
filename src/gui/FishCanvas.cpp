@@ -5,9 +5,13 @@
 #include "FishCanvas.h"
 
 FishCanvas::FishCanvas(QWidget *parent) : SFMLCanvas(parent) {
-    for (int i = 0; i < 250; i++) {
-        Fish f(400, 300);
-        sf::CircleShape shape(8, 3);
+    for (int i = 0; i < 500; i++) {
+        int x = rand() % 2000;
+        int y = rand() % 1200;
+        float vx = rand() % 4000 - 2000;
+        float vy = rand() % 2400 - 1200;
+        Fish f(x, y, vx, vy);
+        sf::CircleShape shape(10, 50);
         shape.setFillColor(sf::Color::Red);
         shape.setOutlineColor(sf::Color::Black);
         shape.setRadius(fishesSize);
@@ -19,13 +23,15 @@ FishCanvas::FishCanvas(QWidget *parent) : SFMLCanvas(parent) {
 void FishCanvas::onUpdate() {
     clear();
     for (auto& fish : shoal) {
-        fish.swim(shoal);
+        fish.applyForce(shoal);
+    }
+    for (auto& fish : shoal) {
+        fish.update();
     }
 
     for (int i = 0; i < fishesShapes.size(); i++) {
         Fish& f = shoal[i];
         fishesShapes[i].setPosition(f.location.x, f.location.y);
-        fishesShapes[i].setRotation(f.angle(f.velocity));
         draw(fishesShapes[i]);
     }
 }

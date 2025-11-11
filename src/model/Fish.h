@@ -15,20 +15,16 @@ public:
     Vector velocity;
     Vector acceleration;
     float maxVelocity;
-    float maxAcceleration;
-    float mass;
+    float maxForce;
     Fish() = default;
-    Fish(float x, float y);
-    void applyForce(const Vector& force);
+    Fish(float x, float y, float vx, float vy);
     Vector separate(const std::vector<Fish>& fishes) const;
     Vector align(const std::vector<Fish>& fishes) const;
-    Vector cohere(const std::vector<Fish>& fishes);
-    Vector seek(const Vector& v);
-    void swim(const std::vector<Fish>& fishes);
+    Vector cohere(const std::vector<Fish>& fishes) const;
+    void applyForce(const std::vector<Fish>& fishes);
     void update();
     void flock(const std::vector<Fish>& fishes);
     void borders();
-    float angle(const Vector& v);
 };
 
 

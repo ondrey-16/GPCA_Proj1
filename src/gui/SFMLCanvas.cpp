@@ -24,5 +24,5 @@ void SFMLCanvas::paintEvent(QPaintEvent *event) {
 }
 
 void SFMLCanvas::showEvent(QShowEvent *event) {
-    sf::RenderWindow::create(static_cast<sf::WindowHandle>(winId()));
+    sf::RenderWindow::create(winId());
 }

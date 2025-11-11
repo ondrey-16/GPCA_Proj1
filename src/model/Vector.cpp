@@ -19,7 +19,7 @@ void Vector::set(float x, float y) {
 void Vector::limit(float max) {
     float size = magnitude();
     if (size > max) {
-        set(this->x / size, this->y / size);
+        setMagnitude(max);
     }
 }
 
@@ -39,8 +39,10 @@ float Vector::magnitude() const {
 }
 
 void Vector::setMagnitude(float x) {
-    normalize();
-    *this = *this * x;
+    if (this->magnitude() > 0) {
+        float scale = x / this->magnitude();
+        *this = *this * scale;
+    }
 }
 
 float Vector::angleBetween(const Vector &v) const {
@@ -59,13 +61,6 @@ float Vector::angleBetween(const Vector &v) const {
         return 0.0;
     }
     return (std::acos(amt));
-}
-
-void Vector::normalize() {
-    float m = magnitude();
-    if (m > 0) {
-        *this = *this / m;
-    }
 }
 
 Vector Vector::copy(const Vector &v) {

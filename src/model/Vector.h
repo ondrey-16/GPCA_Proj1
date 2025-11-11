@@ -28,7 +28,6 @@ public:
     float magnitude() const;
     void setMagnitude(float x);
     float angleBetween(const Vector& v) const;
-    void normalize();
     Vector copy(const Vector& v);
 };
 

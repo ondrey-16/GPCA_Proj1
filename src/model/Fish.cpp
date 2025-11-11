@@ -4,13 +4,17 @@
 
 #include "Fish.h"
 
+float Fish::maxForce = 0.5f;
+float Fish::maxVelocity = 3.5f;
+float Fish::separationWeight = 1.6f;
+float Fish::alignmentWeight = 1.0f;
+float Fish::cohesionWeight = 0.8f;
+
 Fish::Fish(float x, float y, float vx, float vy) {
     acceleration = Vector(0, 0);
     location = Vector(x, y);
-    maxVelocity = 3.5f;
     velocity = Vector(vx, vy);
     velocity.setMagnitude(maxVelocity);
-    maxForce = 0.5f;
 }
 
 Vector Fish::separate(const std::vector<Fish*> &fishes) const {
@@ -96,7 +100,7 @@ void Fish::flock(const std::vector<Fish*> &fishes) {
     Vector sep = separate(fishes);
     Vector ali = align(fishes);
     Vector coh = cohere(fishes);
-    acceleration = ali * 1.0f + coh * 0.8f + sep * 1.6f;
+    acceleration = ali * this->alignmentWeight + coh * this->cohesionWeight + sep * this->separationWeight;
 }
 
 void Fish::borders() {

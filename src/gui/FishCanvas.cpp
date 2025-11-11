@@ -4,12 +4,14 @@
 
 #include "FishCanvas.h"
 
+#include <iostream>
+
 FishCanvas::FishCanvas(QWidget *parent) : SFMLCanvas(parent) {
     fishesOnGrid.resize(21);
     for (int i = 0; i < 21; i++) {
         fishesOnGrid[i].resize(13);
     }
-    for (int i = 0; i < 6000; i++) {
+    for (int i = 0; i < 500; i++) {
         int x = rand() % 2000;
         int y = rand() % 1200;
         float vx = rand() % 4000 - 2000;
@@ -31,11 +33,14 @@ FishCanvas::~FishCanvas() {
 }
 
 void FishCanvas::onUpdate() {
+    auto start = std::chrono::high_resolution_clock::now();
+
     clear();
 
     for (int i = 0; i < 21; i++) {
         for (int j = 0; j < 13; j++) {
             fishesOnGrid[i][j].clear();
+            fishesOnGrid[i][j].resize(0);
         }
     }
 
@@ -67,4 +72,8 @@ void FishCanvas::onUpdate() {
         fishesShapes[i].setPosition(f->location.x, f->location.y);
         draw(fishesShapes[i]);
     }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Update time: " << duration.count() << std::endl;
 }

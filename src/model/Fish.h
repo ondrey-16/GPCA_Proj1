@@ -14,8 +14,11 @@ public:
     Vector location;
     Vector velocity;
     Vector acceleration;
-    float maxVelocity;
-    float maxForce;
+    static float maxVelocity;
+    static float maxForce;
+    static float separationWeight;
+    static float alignmentWeight;
+    static float cohesionWeight;
     Fish() = default;
     Fish(float x, float y, float vx, float vy);
     Vector separate(const std::vector<Fish*>& fishes) const;

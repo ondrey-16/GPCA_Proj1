@@ -5,12 +5,16 @@
 #include "FishCanvas.h"
 
 FishCanvas::FishCanvas(QWidget *parent) : SFMLCanvas(parent) {
-    for (int i = 0; i < 500; i++) {
+    fishesOnGrid.resize(21);
+    for (int i = 0; i < 21; i++) {
+        fishesOnGrid[i].resize(13);
+    }
+    for (int i = 0; i < 6000; i++) {
         int x = rand() % 2000;
         int y = rand() % 1200;
         float vx = rand() % 4000 - 2000;
         float vy = rand() % 2400 - 1200;
-        Fish f(x, y, vx, vy);
+        Fish* f = new Fish(x, y, vx, vy);
         sf::CircleShape shape(10, 50);
         shape.setFillColor(sf::Color::Red);
         shape.setOutlineColor(sf::Color::Black);
@@ -20,18 +24,47 @@ FishCanvas::FishCanvas(QWidget *parent) : SFMLCanvas(parent) {
     }
 }
 
+FishCanvas::~FishCanvas() {
+    for (auto& f : shoal) {
+        delete f;
+    }
+}
+
 void FishCanvas::onUpdate() {
     clear();
+
+    for (int i = 0; i < 21; i++) {
+        for (int j = 0; j < 13; j++) {
+            fishesOnGrid[i][j].clear();
+        }
+    }
+
     for (auto& fish : shoal) {
-        fish.applyForce(shoal);
+        int fx = std::clamp(static_cast<int>(fish->location.x / 100.f), 0, 20);
+        int fy = std::clamp(static_cast<int>(fish->location.y / 100.f), 0, 12);
+        fishesOnGrid[fx][fy].push_back(fish);
+    }
+
+    for (auto& fish : shoal) {
+        std::vector<Fish*> shoalPart;
+        int fx = std::clamp(static_cast<int>(fish->location.x / 100.f), 0, 20);
+        int fy = std::clamp(static_cast<int>(fish->location.y / 100.f), 0, 12);
+        for (int i = fx > 0 ? fx - 1 : 0; i < 21 && i <= fx + 1; i++) {
+            for (int j = fy > 0 ? fy - 1 : 0; j < 13 && j <= fy + 1; j++) {
+                for (auto& f : fishesOnGrid[i][j]) {
+                    shoalPart.push_back(f);
+                }
+            }
+        }
+        fish->applyForce(shoalPart);
     }
     for (auto& fish : shoal) {
-        fish.update();
+        fish->update();
     }
 
     for (int i = 0; i < fishesShapes.size(); i++) {
-        Fish& f = shoal[i];
-        fishesShapes[i].setPosition(f.location.x, f.location.y);
+        Fish* f = shoal[i];
+        fishesShapes[i].setPosition(f->location.x, f->location.y);
         draw(fishesShapes[i]);
     }
 }

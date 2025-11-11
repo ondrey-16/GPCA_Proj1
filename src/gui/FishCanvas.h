@@ -12,13 +12,14 @@
 
 class FishCanvas : public SFMLCanvas {
 public:
-    std::vector<Fish> shoal;
+    std::vector<Fish*> shoal;
     std::vector<sf::CircleShape> fishesShapes;
     float fishesSize = 3.0;
-
     FishCanvas(QWidget* parent = nullptr);
+    ~FishCanvas();
 private:
     void onUpdate() override;
+    std::vector<std::vector<std::vector<Fish*>>> fishesOnGrid;
 };
 
 

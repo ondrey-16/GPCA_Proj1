@@ -13,15 +13,15 @@ Fish::Fish(float x, float y, float vx, float vy) {
     maxForce = 0.5f;
 }
 
-Vector Fish::separate(const std::vector<Fish> &fishes) const {
+Vector Fish::separate(const std::vector<Fish*> &fishes) const {
     float neighborDist = 25.0f;
     Vector steer(0, 0);
     float count = 0.0f;
 
     for (const auto&  fish : fishes) {
-        float dist = location.distance(fish.location);
-        if (&fish != this && dist > 0 && dist < neighborDist) {
-            Vector diff = location - fish.location;
+        float dist = location.distance(fish->location);
+        if (fish != this && dist > 0 && dist < neighborDist) {
+            Vector diff = location - fish->location;
             diff = diff / dist;
             steer = steer + diff;
             count++;
@@ -37,14 +37,14 @@ Vector Fish::separate(const std::vector<Fish> &fishes) const {
     return steer;
 }
 
-Vector Fish::align(const std::vector<Fish> &fishes) const {
+Vector Fish::align(const std::vector<Fish*> &fishes) const {
     float neighborDist = 50.0f;
     Vector steer(0, 0);
     float count = 0.0f;
     for (const auto& fish : fishes) {
-        float dist = location.distance(fish.location);
-        if (&fish != this && dist > 0 && dist < neighborDist) {
-            steer = steer + fish.velocity;
+        float dist = location.distance(fish->location);
+        if (fish != this && dist > 0 && dist < neighborDist) {
+            steer = steer + fish->velocity;
             count++;
         }
     }
@@ -58,14 +58,14 @@ Vector Fish::align(const std::vector<Fish> &fishes) const {
     return {0, 0};
 }
 
-Vector Fish::cohere(const std::vector<Fish> &fishes) const {
+Vector Fish::cohere(const std::vector<Fish*> &fishes) const {
     float neighborDist = 50.0f;
     Vector steer(0, 0);
     float count = 0.0f;
     for (const auto& fish : fishes) {
-        float dist = location.distance(fish.location);
-        if (&fish != this && dist > 0 && dist < neighborDist) {
-            steer = steer + fish.location;
+        float dist = location.distance(fish->location);
+        if (fish != this && dist > 0 && dist < neighborDist) {
+            steer = steer + fish->location;
             count++;
         }
     }
@@ -80,7 +80,7 @@ Vector Fish::cohere(const std::vector<Fish> &fishes) const {
     return {0, 0};
 }
 
-void Fish::applyForce(const std::vector<Fish> &fishes) {
+void Fish::applyForce(const std::vector<Fish*> &fishes) {
     flock(fishes);
 }
 
@@ -92,7 +92,7 @@ void Fish::update() {
     borders();
 }
 
-void Fish::flock(const std::vector<Fish> &fishes) {
+void Fish::flock(const std::vector<Fish*> &fishes) {
     Vector sep = separate(fishes);
     Vector ali = align(fishes);
     Vector coh = cohere(fishes);

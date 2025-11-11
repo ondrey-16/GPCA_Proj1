@@ -11,7 +11,7 @@ SFMLCanvas::SFMLCanvas(QWidget *parent) : QWidget(parent) {
     setFocusPolicy(Qt::StrongFocus);
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, [this]() { this->update(); });
-    timer->start(16);
+    timer->start(33);
 }
 
 QPaintEngine * SFMLCanvas::paintEngine() const {

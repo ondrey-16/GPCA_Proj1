@@ -6,24 +6,22 @@
 
 #include <iostream>
 
-FishCanvas::FishCanvas(QWidget *parent) : SFMLCanvas(parent) {
+FishCanvas::FishCanvas(QWidget *parent) {
     fishesOnGrid.resize(21);
     for (int i = 0; i < 21; i++) {
         fishesOnGrid[i].resize(13);
     }
-    for (int i = 0; i < 500; i++) {
+    for (int i = 0; i < 3000; i++) {
         int x = rand() % 2000;
         int y = rand() % 1200;
         float vx = rand() % 4000 - 2000;
         float vy = rand() % 2400 - 1200;
         Fish* f = new Fish(x, y, vx, vy);
-        sf::CircleShape shape(10, 50);
-        shape.setFillColor(sf::Color::Red);
-        shape.setOutlineColor(sf::Color::Black);
-        shape.setRadius(fishesSize);
         shoal.push_back(f);
-        fishesShapes.push_back(shape);
     }
+    timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, this, &FishCanvas::onUpdate);
+    timer->start(33);
 }
 
 FishCanvas::~FishCanvas() {
@@ -32,10 +30,19 @@ FishCanvas::~FishCanvas() {
     }
 }
 
+void FishCanvas::paintEvent(QPaintEvent *paint_event) {
+    QPainter painter(this);
+    painter.fillRect(rect(), Qt::black);
+    painter.setBrush(Qt::red);
+    painter.setPen(Qt::black);
+
+    for (auto& fish : shoal) {
+        painter.drawEllipse(fish->location.x, fish->location.y, 8, 8);
+    }
+}
+
 void FishCanvas::onUpdate() {
     auto start = std::chrono::high_resolution_clock::now();
-
-    clear();
 
     for (int i = 0; i < 21; i++) {
         for (int j = 0; j < 13; j++) {
@@ -67,11 +74,7 @@ void FishCanvas::onUpdate() {
         fish->update();
     }
 
-    for (int i = 0; i < fishesShapes.size(); i++) {
-        Fish* f = shoal[i];
-        fishesShapes[i].setPosition(f->location.x, f->location.y);
-        draw(fishesShapes[i]);
-    }
+    update();
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

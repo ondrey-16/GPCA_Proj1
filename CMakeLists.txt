@@ -21,8 +21,7 @@ add_executable(Shoal_Fish_Animation
         src/model/Fish.h
         src/gui/FishCanvas.cpp
         src/gui/FishCanvas.h
-        src/gui/SFMLCanvas.cpp
-        src/gui/SFMLCanvas.h)
+)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets)
 target_link_libraries(${PROJECT_NAME} PRIVATE sfml-graphics sfml-window sfml-system)

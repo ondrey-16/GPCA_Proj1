@@ -7,11 +7,11 @@
 #include <iostream>
 
 FishCanvas::FishCanvas(QWidget *parent) {
-    fishesOnGrid.resize(21);
-    for (int i = 0; i < 21; i++) {
-        fishesOnGrid[i].resize(13);
+    fishesOnGrid.resize(41);
+    for (int i = 0; i < 41; i++) {
+        fishesOnGrid[i].resize(25);
     }
-    for (int i = 0; i < 3000; i++) {
+    for (int i = 0; i < 5000; i++) {
         int x = rand() % 2000;
         int y = rand() % 1200;
         float vx = rand() % 4000 - 2000;
@@ -44,25 +44,25 @@ void FishCanvas::paintEvent(QPaintEvent *paint_event) {
 void FishCanvas::onUpdate() {
     auto start = std::chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < 21; i++) {
-        for (int j = 0; j < 13; j++) {
+    for (int i = 0; i < 41; i++) {
+        for (int j = 0; j < 25; j++) {
             fishesOnGrid[i][j].clear();
             fishesOnGrid[i][j].resize(0);
         }
     }
 
     for (auto& fish : shoal) {
-        int fx = std::clamp(static_cast<int>(fish->location.x / 100.f), 0, 20);
-        int fy = std::clamp(static_cast<int>(fish->location.y / 100.f), 0, 12);
+        int fx = std::clamp(static_cast<int>(fish->location.x / 50.f), 0, 40);
+        int fy = std::clamp(static_cast<int>(fish->location.y / 50.f), 0, 24);
         fishesOnGrid[fx][fy].push_back(fish);
     }
 
     for (auto& fish : shoal) {
         std::vector<Fish*> shoalPart;
-        int fx = std::clamp(static_cast<int>(fish->location.x / 100.f), 0, 20);
-        int fy = std::clamp(static_cast<int>(fish->location.y / 100.f), 0, 12);
-        for (int i = fx > 0 ? fx - 1 : 0; i < 21 && i <= fx + 1; i++) {
-            for (int j = fy > 0 ? fy - 1 : 0; j < 13 && j <= fy + 1; j++) {
+        int fx = std::clamp(static_cast<int>(fish->location.x / 50.f), 0, 40);
+        int fy = std::clamp(static_cast<int>(fish->location.y / 50.f), 0, 24);
+        for (int i = fx > 0 ? fx - 1 : 0; i < 40 && i <= fx + 1; i++) {
+            for (int j = fy > 0 ? fy - 1 : 0; j < 24 && j <= fy + 1; j++) {
                 for (auto& f : fishesOnGrid[i][j]) {
                     shoalPart.push_back(f);
                 }

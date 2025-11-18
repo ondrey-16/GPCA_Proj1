@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(Shoal_Fish_Animation LANGUAGES CXX)
+project(Shoal_Fish_Animation LANGUAGES CXX CUDA)
+set(CMAKE_CUDA_ARCHITECTURES 86)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,6 +22,7 @@ add_executable(Shoal_Fish_Animation
         src/model/Fish.h
         src/gui/FishCanvas.cpp
         src/gui/FishCanvas.h
+        src/gpu/kernel.cu
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets)

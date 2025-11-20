@@ -3,6 +3,9 @@
 //
 
 #include "cuda_runtime.h"
+#include <thrust/sort.h>
+
+#include "../model/Fish.h"
 
 struct cudaFishesParams {
     int N;
@@ -12,6 +15,7 @@ struct cudaFishesParams {
     float* vy;
     float* ax;
     float* ay;
+
     cudaFishesParams(const int n) {
         this->N = n;
         this->x = new float[N];
@@ -20,6 +24,14 @@ struct cudaFishesParams {
         this->vy = new float[N];
         this->ax = new float[N];
         this->ay = new float[N];
+    }
+    ~cudaFishesParams() {
+        delete[] this->x;
+        delete[] this->y;
+        delete[] this->vx;
+        delete[] this->vy;
+        delete[] this->ax;
+        delete[] this->ay;
     }
 };
 
@@ -57,6 +69,8 @@ __device__ void borders(const cudaFishesParams* shoal, int fishIdx);
 
 __global__ void splitFishesOnGridKernel(cudaFishesParams* shoal, int* indexes);
 __global__ void computeForceKernel(const cudaFishesParams* shoal, int* gridIndexes, int* cellsStartIndexes);
+
+void initializeFishesParams(int N, cudaFishesParams* shoal);
 
 __device__ float magnitude(const float x, const float y) {
     return sqrtf(x * x + y * y);
@@ -270,3 +284,179 @@ __global__ void updateFishKernel(const cudaFishesParams* shoal) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     update(shoal, i);
 }
+
+void initializeFishesParams(const int N, cudaFishesParams* shoal) {
+    shoal = new cudaFishesParams(N);
+    for (int i = 0; i < N; i++) {
+        shoal->ax[i] = 0;
+        shoal->ay[i] = 0;
+        shoal->vx[i] = rand() % 4000 - 2000;
+        shoal->vy[i] = rand() % 2400 - 1200;
+        shoal->x[i] = rand() % 2000;
+        shoal->y[i] = rand() % 1200;
+    }
+}
+
+void updateShoalSceneOnGPU(cudaFishesParams* shoal) {
+    cudaError_t status;
+    cudaFishesParams shoalArraysOnDevice(shoal->N);
+    cudaFishesParams* shoalOnDevice;
+    int* gridIndexesOnDevice;
+    int* cellsStartIndexesOnDevice;
+
+    status = cudaMalloc(reinterpret_cast<void**>(&gridIndexesOnDevice), sizeof(int) * shoal->N);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(&cellsStartIndexesOnDevice), sizeof(int) * 41 * 25);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+
+    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.x), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.y), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.vx), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.vy), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.ax), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.ay), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+
+    status = cudaMemcpy(shoalArraysOnDevice.x, shoal->x,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMemcpy(shoalArraysOnDevice.y, shoal->y,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMemcpy(shoalArraysOnDevice.vx, shoal->vx,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMemcpy(shoalArraysOnDevice.vy, shoal->vy,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMemcpy(shoalArraysOnDevice.ax, shoal->ax,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMemcpy(shoalArraysOnDevice.ay, shoal->ay,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+
+    status = cudaMalloc(reinterpret_cast<void**>(&shoalOnDevice), sizeof(cudaFishesParams));
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMemcpy(shoalOnDevice, &shoalArraysOnDevice,sizeof(cudaFishesParams), cudaMemcpyHostToDevice);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+
+    dim3 blockDim(128);
+    dim3 gridDim((shoal->N + blockDim.x - 1) / blockDim.x);
+
+    splitFishesOnGridKernel<<<blockDim, gridDim>>>(shoalOnDevice, gridIndexesOnDevice);
+    status = cudaDeviceSynchronize();
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+
+    auto zipFishParams = thrust::make_zip_iterator(
+        thrust::make_tuple (
+        shoalOnDevice->x,
+        shoalOnDevice->y,
+        shoalOnDevice->vx,
+        shoalOnDevice->vy,
+        shoalOnDevice->ax,
+        shoalOnDevice->ay
+        )
+    );
+
+    thrust::sort_by_key(gridIndexesOnDevice, gridIndexesOnDevice + shoalOnDevice->N, zipFishParams);
+
+    int* gridIndexes = new int[shoal->N];
+    status = cudaMemcpy(gridIndexes, gridIndexesOnDevice,sizeof(int) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+
+    int cellsStartIndexes[41 * 25];
+    int i = 0;
+    for (int j = 0; j < shoal->N; j++) {
+        if (gridIndexes[j] == i) {
+            cellsStartIndexes[i++] = j;
+        }
+    }
+
+    status = cudaMemcpy(cellsStartIndexesOnDevice, &cellsStartIndexes,sizeof(int) * 41 * 25, cudaMemcpyHostToDevice);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+
+    computeForceKernel<<<blockDim, gridDim>>>(shoalOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice);
+    status = cudaDeviceSynchronize();
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+
+    updateFishKernel<<<blockDim, gridDim>>>(shoalOnDevice);
+    status = cudaDeviceSynchronize();
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+
+    status = cudaMemcpy(shoal->x, shoalOnDevice->x,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMemcpy(shoal->y, shoalOnDevice->y,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMemcpy(shoal->vx, shoalOnDevice->vx,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMemcpy(shoal->vy, shoalOnDevice->vy,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMemcpy(shoal->ax, shoalOnDevice->ax,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+    status = cudaMemcpy(shoal->ay, shoalOnDevice->ay,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        exit(0);
+    }
+
+    cudaFree(shoalArraysOnDevice.x);
+    cudaFree(shoalArraysOnDevice.y);
+    cudaFree(shoalArraysOnDevice.vx);
+    cudaFree(shoalArraysOnDevice.vy);
+    cudaFree(shoalArraysOnDevice.ax);
+    cudaFree(shoalArraysOnDevice.ay);
+    cudaFree(gridIndexesOnDevice);
+    cudaFree(cellsStartIndexesOnDevice);
+}
+

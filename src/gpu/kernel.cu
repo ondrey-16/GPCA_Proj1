@@ -2,75 +2,18 @@
 // Created by ondrey on 18.11.2025.
 //
 
-#include "cuda_runtime.h"
 #include <thrust/sort.h>
+#include <thrust/device_ptr.h>
+#include <chrono>
 
 #include "../model/Fish.h"
-
-struct cudaFishesParams {
-    int N;
-    float* x;
-    float* y;
-    float* vx;
-    float* vy;
-    float* ax;
-    float* ay;
-
-    cudaFishesParams(const int n) {
-        this->N = n;
-        this->x = new float[N];
-        this->y = new float[N];
-        this->vx = new float[N];
-        this->vy = new float[N];
-        this->ax = new float[N];
-        this->ay = new float[N];
-    }
-    ~cudaFishesParams() {
-        delete[] this->x;
-        delete[] this->y;
-        delete[] this->vx;
-        delete[] this->vy;
-        delete[] this->ax;
-        delete[] this->ay;
-    }
-};
-
-struct cudaVector {
-    float x;
-    float y;
-    cudaVector(const float x, const float y) {
-        this->x = x;
-        this->y = y;
-    }
-};
+#include "kernel.h"
 
 __constant__ float maxVelocity;
 __constant__ float maxForce;
 __constant__ float alignmentWeight;
 __constant__ float separationWeight;
 __constant__ float cohesionWeight;
-
-__device__ float magnitude(float x, float y);
-__device__ void setMagnitude(float* x, float* y, float mag);
-__device__ void limit(float* x, float* y, float max);
-__device__ float distance(float x1, float y1, float x2, float y2);
-__device__ cudaVector add(float x1, float y1, float x2, float y2);
-__device__ cudaVector sub(float x1, float y1, float x2, float y2);
-__device__ cudaVector mul(float x1, float y1, float x2, float y2);
-__device__ cudaVector div(float x1, float y1, float x2, float y2);
-__device__ cudaVector separate(const cudaFishesParams* shoal, int start, int end, int fishIdx, int* count);
-__device__ cudaVector align(const cudaFishesParams* shoal, int start, int end, int fishIdx, int* count);
-__device__ cudaVector cohere(const cudaFishesParams* shoal, int start, int end, int fishIdx, int* count);
-__device__ void normalizeSteerVector(cudaVector* steer, const cudaFishesParams* shoal, int fishIdx, int count);
-__device__ void normalizeCohesionSteerVector(cudaVector* steer, const cudaFishesParams* shoal, int fishIdx, int count);
-__device__ void flock(const cudaFishesParams* shoal, int fishIdx, int fx, int fy, const int* cellsStartIndexes);
-__device__ void update(const cudaFishesParams* shoal, int fishIdx);
-__device__ void borders(const cudaFishesParams* shoal, int fishIdx);
-
-__global__ void splitFishesOnGridKernel(cudaFishesParams* shoal, int* indexes);
-__global__ void computeForceKernel(const cudaFishesParams* shoal, int* gridIndexes, int* cellsStartIndexes);
-
-void initializeFishesParams(int N, cudaFishesParams* shoal);
 
 __device__ float magnitude(const float x, const float y) {
     return sqrtf(x * x + y * y);
@@ -98,11 +41,11 @@ __device__ float distance(const float x1, const float y1, const float x2, const 
 }
 
 __device__ cudaVector add(const float x1, const float y1, const float x2, const float y2) {
-    return cudaVector(x1 + y1, x2 + y2);
+    return cudaVector(x1 + x2, y1 + y2);
 }
 
 __device__ cudaVector sub(const float x1, const float y1, const float x2, const float y2) {
-    return cudaVector(x1 - y1, x2 - y2);
+    return cudaVector(x1 - x2, y1 - y2);
 }
 
 __device__ cudaVector mul(const float x1, const float y1, const float x2, const float y2) {
@@ -113,45 +56,45 @@ __device__ cudaVector div(const float x1, const float y1, const float x2, const 
     return cudaVector(x1 / x2, y1 / y2);
 }
 
-__device__ cudaVector separate(const cudaFishesParams* shoal, const int start, const int end, const int fishIdx, int* count) {
+__device__ cudaVector separate(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int start, const int end, const int fishIdx, int* count) {
     float neighborDist = 25.0f;
     cudaVector steer(0, 0);
 
     for (int i = start; i < end; i++) {
-        float dist = distance(shoal->x[fishIdx], shoal->y[fishIdx], shoal->x[i], shoal->y[i]);
+        float dist = distance(x[fishIdx], y[fishIdx], x[i], y[i]);
         if (fishIdx != i && dist > 0 && dist < neighborDist) {
-            cudaVector diff = sub(shoal->x[fishIdx], shoal->y[fishIdx], shoal->x[i], shoal->y[i]);
+            cudaVector diff = sub(x[fishIdx], y[fishIdx], x[i], y[i]);
             diff.x /= dist;
             diff.y /= dist;
             steer = add(steer.x, steer.y, diff.x, diff.y);
-            count++;
+            (*count)++;
         }
     }
 
     return steer;
 }
 
-__device__ cudaVector align(const cudaFishesParams* shoal, const int start, const int end, const int fishIdx, int* count) {
-    float neighborDist = 25.0f;
+__device__ cudaVector align(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int start, const int end, const int fishIdx, int* count) {
+    float neighborDist = 50.0f;
     cudaVector steer(0, 0);
 
     for (int i = start; i < end; i++) {
-        float dist = distance(shoal->x[fishIdx], shoal->y[fishIdx], shoal->x[i], shoal->y[i]);
+        float dist = distance(x[fishIdx], y[fishIdx], x[i], y[i]);
         if (fishIdx != i && dist > 0 && dist < neighborDist) {
-            steer = add(steer.x, steer.y, shoal->vx[i], shoal->vy[i]);
-            count++;
+            steer = add(steer.x, steer.y, vx[i], vy[i]);
+            (*count)++;
         }
     }
 
     return steer;
 }
 
-__device__ void normalizeSteerVector(cudaVector* steer, const cudaFishesParams* shoal, int fishIdx, int count) {
+__device__ void normalizeSteerVector(cudaVector* steer, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx, int count) {
     if (count > 0) {
         steer->x /= static_cast<float>(count);
         steer->y /= static_cast<float>(count);
         setMagnitude(&steer->x, &steer->y, maxVelocity);
-        *steer = sub(steer->x, steer->y, shoal->vx[fishIdx], shoal->vy[fishIdx]);
+        *steer = sub(steer->x, steer->y, vx[fishIdx], vy[fishIdx]);
         limit(&steer->x, &steer->y, maxForce);
     }
     else {
@@ -160,136 +103,203 @@ __device__ void normalizeSteerVector(cudaVector* steer, const cudaFishesParams* 
     }
 }
 
-__device__ cudaVector cohere(const cudaFishesParams* shoal, const int start, const int end, const int fishIdx, int* count) {
-    float neighborDist = 25.0f;
+__device__ cudaVector cohere(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int start, const int end, const int fishIdx, int* count) {
+    float neighborDist = 50.0f;
     cudaVector steer(0, 0);
 
     for (int i = start; i < end; i++) {
-        float dist = distance(shoal->x[fishIdx], shoal->y[fishIdx], shoal->x[i], shoal->y[i]);
+        float dist = distance(x[fishIdx], y[fishIdx], x[i], y[i]);
         if (fishIdx != i && dist > 0 && dist < neighborDist) {
-            steer = add(steer.x, steer.y, shoal->x[i], shoal->y[i]);
-            count++;
+            steer = add(steer.x, steer.y, x[i], y[i]);
+            (*count)++;
         }
     }
 
     return steer;
 }
 
-__device__ void normalizeCohesionSteerVector(cudaVector* steer, const cudaFishesParams* shoal, int fishIdx, int count) {
+__device__ void normalizeCohesionSteerVector(cudaVector* steer, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx, int count) {
     if (count > 0) {
         steer->x /= static_cast<float>(count);
         steer->y /= static_cast<float>(count);
-        *steer = sub(steer->x, steer->y, shoal->x[fishIdx], shoal->y[fishIdx]);
+        *steer = sub(steer->x, steer->y, x[fishIdx], y[fishIdx]);
         setMagnitude(&steer->x, &steer->y, maxVelocity);
-        *steer = sub(steer->x, steer->y, shoal->vx[fishIdx], shoal->vy[fishIdx]);
+        *steer = sub(steer->x, steer->y, vx[fishIdx], vy[fishIdx]);
         limit(&steer->x, &steer->y, maxForce);
     }
     else {
-        steer->x = 0.f;
-        steer->y = 0.f;
+        steer->x = 0.0f;
+        steer->y = 0.0f;
     }
 }
 
-__device__ void flock(const cudaFishesParams* shoal, const int fishIdx, const int fx, const int fy, const int* cellsStartIndexes) {
+__device__ void flock(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int fishIdx, const int fx, const int fy, const int* cellsStartIndexes) {
     int gridIndex;
 
     cudaVector sep(0, 0);
     int count = 0;
-    for (int j = fx > 0 ? fx - 1 : 0; j < 40 && j <= fx + 1; j++) {
-        for (int k = fy > 0 ? fy - 1 : 0; k < 24 && j <= fy + 1; k++) {
+    for (int j = fx > 0 ? fx - 1 : 0; j < 41 && j <= fx + 1; j++) {
+        for (int k = fy > 0 ? fy - 1 : 0; k < 25 && k <= fy + 1; k++) {
             gridIndex = k * 41 + j;
+            if (cellsStartIndexes[gridIndex] == -1) {
+                continue;
+            }
             cudaVector partSep(0, 0);
-            partSep = separate(shoal, cellsStartIndexes[gridIndex], (gridIndex < 41 * 25 - 1) ? cellsStartIndexes[gridIndex + 1] : shoal->N,
+            int endIdx = gridIndex + 1;
+            while (endIdx < 41 * 25 && cellsStartIndexes[endIdx] == -1) {
+                endIdx++;
+            }
+            partSep = separate(x, y, vx, vy, ax, ay, N, cellsStartIndexes[gridIndex], (gridIndex < 41 * 25 - 1) ? cellsStartIndexes[endIdx] : N,
                 fishIdx, &count);
             sep = add(sep.x, sep.y, partSep.x, partSep.y);
         }
     }
-    normalizeSteerVector(&sep, shoal, fishIdx, count);
+    normalizeSteerVector(&sep, x, y, vx, vy, ax, ay, N, fishIdx, count);
 
     cudaVector ali(0, 0);
     count = 0;
-    for (int j = fx > 0 ? fx - 1 : 0; j < 40 && j <= fx + 1; j++) {
-        for (int k = fy > 0 ? fy - 1 : 0; k < 24 && j <= fy + 1; k++) {
+    for (int j = fx > 0 ? fx - 1 : 0; j < 41 && j <= fx + 1; j++) {
+        for (int k = fy > 0 ? fy - 1 : 0; k < 25 && k <= fy + 1; k++) {
             gridIndex = k * 41 + j;
+            if (cellsStartIndexes[gridIndex] == -1) {
+                continue;
+            }
             cudaVector partAli(0, 0);
-            partAli = align(shoal, cellsStartIndexes[gridIndex], (gridIndex < 41 * 25 - 1) ? cellsStartIndexes[gridIndex + 1] : shoal->N,
+            int endIdx = gridIndex + 1;
+            while (endIdx < 41 * 25 && cellsStartIndexes[endIdx] == -1) {
+                endIdx++;
+            }
+            partAli = align(x, y, vx, vy, ax, ay, N, cellsStartIndexes[gridIndex], (gridIndex < 41 * 25 - 1) ? cellsStartIndexes[endIdx] : N,
                 fishIdx, &count);
             ali = add(ali.x, ali.y, partAli.x, partAli.y);
         }
     }
-    normalizeSteerVector(&ali, shoal, fishIdx, count);
+    normalizeSteerVector(&ali, x, y, vx, vy, ax, ay, N, fishIdx, count);
 
     cudaVector coh(0, 0);
     count = 0;
-    for (int j = fx > 0 ? fx - 1 : 0; j < 40 && j <= fx + 1; j++) {
-        for (int k = fy > 0 ? fy - 1 : 0; k < 24 && j <= fy + 1; k++) {
+    for (int j = fx > 0 ? fx - 1 : 0; j < 41 && j <= fx + 1; j++) {
+        for (int k = fy > 0 ? fy - 1 : 0; k < 25 && k <= fy + 1; k++) {
             gridIndex = k * 41 + j;
+            if (cellsStartIndexes[gridIndex] == -1) {
+                continue;
+            }
             cudaVector partCoh(0, 0);
-            partCoh = cohere(shoal, cellsStartIndexes[gridIndex], (gridIndex < 41 * 25 - 1) ? cellsStartIndexes[gridIndex + 1] : shoal->N,
+            int endIdx = gridIndex + 1;
+            while (endIdx < 41 * 25 && cellsStartIndexes[endIdx] == -1) {
+                endIdx++;
+            }
+            partCoh = cohere(x, y, vx, vy, ax, ay, N, cellsStartIndexes[gridIndex], (gridIndex < 41 * 25 - 1) ? cellsStartIndexes[endIdx] : N,
                 fishIdx, &count);
             coh = add(coh.x, coh.y, partCoh.x, partCoh.y);
         }
     }
-    normalizeSteerVector(&coh, shoal, fishIdx, count);
+    normalizeCohesionSteerVector(&coh, x, y, vx, vy, ax, ay, N, fishIdx, count);
 
-    shoal->ax[fishIdx] = ali.x * alignmentWeight + coh.x * cohesionWeight + sep.x * separationWeight;
-    shoal->ay[fishIdx] = ali.y * alignmentWeight + coh.y * cohesionWeight + sep.y * separationWeight;
+    ax[fishIdx] = ali.x * alignmentWeight + coh.x * cohesionWeight + sep.x * separationWeight;
+    ay[fishIdx] = ali.y * alignmentWeight + coh.y * cohesionWeight + sep.y * separationWeight;
 }
 
-__device__ void update(const cudaFishesParams* shoal, const int fishIdx) {
-    const cudaVector velocity = add(shoal->vx[fishIdx], shoal->vy[fishIdx], shoal->ax[fishIdx], shoal->ay[fishIdx]);
-    shoal->vx[fishIdx] = velocity.x;
-    shoal->vy[fishIdx] = velocity.y;
-    limit(&shoal->vx[fishIdx], &shoal->vy[fishIdx], maxVelocity);
-    const cudaVector location = add(shoal->vx[fishIdx], shoal->vy[fishIdx], shoal->x[fishIdx], shoal->y[fishIdx]);
-    shoal->x[fishIdx] = location.x;
-    shoal->y[fishIdx] = location.y;
-    shoal->ax[fishIdx] *= 0.0f;
-    shoal->ay[fishIdx] *= 0.0f;
-    borders(shoal, fishIdx);
+__device__ void update(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int fishIdx) {
+    const cudaVector velocity = add(vx[fishIdx], vy[fishIdx], ax[fishIdx], ay[fishIdx]);
+    vx[fishIdx] = velocity.x;
+    vy[fishIdx] = velocity.y;
+    limit(&vx[fishIdx], &vy[fishIdx], maxVelocity);
+    const cudaVector location = add(vx[fishIdx], vy[fishIdx], x[fishIdx], y[fishIdx]);
+    x[fishIdx] = location.x;
+    y[fishIdx] = location.y;
+    ax[fishIdx] *= 0.0f;
+    ay[fishIdx] *= 0.0f;
+    borders(x, y, vx, vy, ax, ay, N, fishIdx);
 }
 
-__device__ void borders(const cudaFishesParams* shoal, const int fishIdx) {
-    if (shoal->x[fishIdx] > 2000) {
-        shoal->x[fishIdx] = 0;
+__device__ void borders(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int fishIdx) {
+    if (x[fishIdx] > 2000) {
+        x[fishIdx] = 0;
     }
-    else if (shoal->x[fishIdx] < 0) {
-        shoal->x[fishIdx]= 2000;
+    else if (x[fishIdx] < 0) {
+        x[fishIdx]= 2000;
     }
-    if (shoal->y[fishIdx]> 1200) {
-        shoal->y[fishIdx]= 0;
+    if (y[fishIdx]> 1200) {
+        y[fishIdx]= 0;
     }
-    else if (shoal->y[fishIdx] < 0) {
-        shoal->y[fishIdx] = 1200;
+    else if (y[fishIdx] < 0) {
+        y[fishIdx] = 1200;
     }
 }
 
-__global__ void splitFishesOnGridKernel(const cudaFishesParams* shoal, int* gridIndexes) {
+__global__ void splitFishesOnGridKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int* gridIndexes) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
-    const int idxX = shoal->x[i] / 50;
-    const int idxY = shoal->y[i] / 50;
+    if (i >= N) return;
+    const int idxX = x[i] / 50;
+    const int idxY = y[i] / 50;
     gridIndexes[i] = 41 * idxY + idxX;
 }
 
-__global__ void computeForceKernel(const cudaFishesParams* shoal, const int* gridIndexes, const int* cellsStartIndexes) {
+__global__ void resetCellsStartIndexesKernel(int* cellsStartIndexes, int cellsN) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= cellsN) return;
+    cellsStartIndexes[i] = -1;
+}
+
+__global__ void initializeFishesIndexesKernel(int* fishesIndexes, int N) {
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= N) return;
+    fishesIndexes[i] = i;
+}
+
+__global__ void initializeSortedParamsKernel(float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx, float* nvy, int* fishesIndexes, int N) {
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= N) return;
+    nx[i] = x[fishesIndexes[i]];
+    ny[i] = y[fishesIndexes[i]];
+    nvx[i] = vx[fishesIndexes[i]];
+    nvy[i] = vy[fishesIndexes[i]];
+}
+
+__global__ void sortParamsKernel(float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx, float* nvy, int N) {
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= N) return;
+    x[i] = nx[i];
+    y[i] = ny[i];
+    vx[i] = nvx[i];
+    vy[i] = nvy[i];
+}
+
+__global__ void findCellsStartIndexesKernel(int* cellsStartIndexes, int* gridIndexes, int N) {
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= N) return;
+
+    if (i == 0) {
+        cellsStartIndexes[gridIndexes[i]] = 0;
+    }
+    else {
+        if (gridIndexes[i - 1] != gridIndexes[i]) {
+            cellsStartIndexes[gridIndexes[i]] = i;
+        }
+    }
+}
+
+__global__ void computeForceKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int* gridIndexes, const int* cellsStartIndexes) {
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= N) return;
     int gridIndex = gridIndexes[i];
     const int fy = gridIndex / 41;
     const int fx = gridIndex % 41;
 
-    flock(shoal, i, fx, fy, cellsStartIndexes);
+    flock(x, y, vx, vy, ax, ay, N, i, fx, fy, cellsStartIndexes);
 }
 
-__global__ void updateFishKernel(const cudaFishesParams* shoal) {
+__global__ void updateFishKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
-    update(shoal, i);
+    if (i >= N) return;
+    update(x, y, vx, vy, ax, ay, N, i);
 }
 
 void initializeFishesParams(const int N, cudaFishesParams* shoal) {
-    shoal = new cudaFishesParams(N);
     for (int i = 0; i < N; i++) {
-        shoal->ax[i] = 0;
-        shoal->ay[i] = 0;
+        shoal->ax[i] = 0.0f;
+        shoal->ay[i] = 0.5f;
         shoal->vx[i] = rand() % 4000 - 2000;
         shoal->vy[i] = rand() % 2400 - 1200;
         shoal->x[i] = rand() % 2000;
@@ -297,166 +307,251 @@ void initializeFishesParams(const int N, cudaFishesParams* shoal) {
     }
 }
 
-void updateShoalSceneOnGPU(cudaFishesParams* shoal) {
+void initializeMemoryOnGPU(cudaFishesParams* shoal, float** xOnDevice, float** yOnDevice, float** vxOnDevice, float** vyOnDevice,
+    float** axOnDevice, float** ayOnDevice, float** nxOnDevice, float** nyOnDevice, float** nvxOnDevice, float** nvyOnDevice,
+    int** gridIndexesOnDevice, int** cellsStartIndexesOnDevice, int** fishesIndexes) {
     cudaError_t status;
-    cudaFishesParams shoalArraysOnDevice(shoal->N);
-    cudaFishesParams* shoalOnDevice;
-    int* gridIndexesOnDevice;
-    int* cellsStartIndexesOnDevice;
 
-    status = cudaMalloc(reinterpret_cast<void**>(&gridIndexesOnDevice), sizeof(int) * shoal->N);
+    float mf = 0.5f;
+    float mv = 3.5f;
+    float sw = 1.6f;
+    float aw = 1.0f;
+    float cw = 0.8f;
+
+    cudaMemcpyToSymbol(maxVelocity, &mv, sizeof(float));
+    cudaMemcpyToSymbol(maxForce, &mf, sizeof(float));
+    cudaMemcpyToSymbol(alignmentWeight, &aw, sizeof(float));
+    cudaMemcpyToSymbol(separationWeight, &sw, sizeof(float));
+    cudaMemcpyToSymbol(cohesionWeight, &cw, sizeof(float));
+
+    status = cudaMalloc(reinterpret_cast<void**>(gridIndexesOnDevice), sizeof(int) * shoal->N);
     if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "Malloc gridIndexesOnDevice: " << status << std::endl;
+        exit(1);
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&cellsStartIndexesOnDevice), sizeof(int) * 41 * 25);
+    status = cudaMalloc(reinterpret_cast<void**>(cellsStartIndexesOnDevice), sizeof(int) * 41 * 25);
     if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "Malloc cellsStartIndexesOnDevice: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(fishesIndexes), sizeof(int) * shoal->N);
+    if (status != cudaSuccess) {
+        std::cerr << "Malloc cellsStartIndexesOnDevice: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(xOnDevice), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        std::cerr << "Malloc xOnDevice: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(yOnDevice), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        std::cerr << "Malloc yOnDevice: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(vxOnDevice), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        std::cerr << "Malloc vxOnDevice: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(vyOnDevice), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        std::cerr << "Malloc vyOnDevice: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(axOnDevice), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        std::cerr << "Malloc axOnDevice: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(ayOnDevice), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        std::cerr << "Malloc ayOnDevice: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(nxOnDevice), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        std::cerr << "Malloc xOnDevice: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(nyOnDevice), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        std::cerr << "Malloc yOnDevice: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(nvxOnDevice), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        std::cerr << "Malloc vxOnDevice: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMalloc(reinterpret_cast<void**>(nvyOnDevice), sizeof(float) * shoal->N);
+    if (status != cudaSuccess) {
+        std::cerr << "Malloc vyOnDevice: " << status << std::endl;
+        exit(1);
     }
 
-    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.x), sizeof(float) * shoal->N);
+    status = cudaMemcpy(*xOnDevice, shoal->x,sizeof(float) * shoal->N, cudaMemcpyHostToDevice);
     if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "Memcpy to device xOnDevice: " << status << std::endl;
+        exit(1);
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.y), sizeof(float) * shoal->N);
+    status = cudaMemcpy(*yOnDevice, shoal->y,sizeof(float) * shoal->N, cudaMemcpyHostToDevice);
     if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "Memcpy to device yOnDevice: " << status << std::endl;
+        exit(1);
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.vx), sizeof(float) * shoal->N);
+    status = cudaMemcpy(*vxOnDevice, shoal->vx,sizeof(float) * shoal->N, cudaMemcpyHostToDevice);
     if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "Memcpy to device vxOnDevice: " << status << std::endl;
+        exit(1);
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.vy), sizeof(float) * shoal->N);
+    status = cudaMemcpy(*vyOnDevice, shoal->vy,sizeof(float) * shoal->N, cudaMemcpyHostToDevice);
     if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "Memcpy to device vyOnDevice: " << status << std::endl;
+        exit(1);
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.ax), sizeof(float) * shoal->N);
+    status = cudaMemcpy(*axOnDevice, shoal->ax,sizeof(float) * shoal->N, cudaMemcpyHostToDevice);
     if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "Memcpy to device axOnDevice: " << status << std::endl;
+        exit(1);
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&shoalArraysOnDevice.ay), sizeof(float) * shoal->N);
+    status = cudaMemcpy(*ayOnDevice, shoal->ay,sizeof(float) * shoal->N, cudaMemcpyHostToDevice);
     if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "Memcpy to device ayOnDevice: " << status << std::endl;
+        exit(1);
     }
+}
 
-    status = cudaMemcpy(shoalArraysOnDevice.x, shoal->x,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-    status = cudaMemcpy(shoalArraysOnDevice.y, shoal->y,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-    status = cudaMemcpy(shoalArraysOnDevice.vx, shoal->vx,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-    status = cudaMemcpy(shoalArraysOnDevice.vy, shoal->vy,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-    status = cudaMemcpy(shoalArraysOnDevice.ax, shoal->ax,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-    status = cudaMemcpy(shoalArraysOnDevice.ay, shoal->ay,sizeof(cudaFishesParams) * shoal->N, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
+void updateShoalSceneOnGPU(cudaFishesParams* shoal, float* xOnDevice, float* yOnDevice, float* vxOnDevice, float* vyOnDevice,
+    float* axOnDevice, float* ayOnDevice, float* nxOnDevice, float* nyOnDevice, float* nvxOnDevice, float* nvyOnDevice,
+    int* gridIndexesOnDevice, int* cellsStartIndexesOnDevice, int* fishesIndexes) {
+    cudaError_t status;
 
-    status = cudaMalloc(reinterpret_cast<void**>(&shoalOnDevice), sizeof(cudaFishesParams));
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-    status = cudaMemcpy(shoalOnDevice, &shoalArraysOnDevice,sizeof(cudaFishesParams), cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-
-    dim3 blockDim(128);
+    dim3 blockDim(256);
     dim3 gridDim((shoal->N + blockDim.x - 1) / blockDim.x);
 
-    splitFishesOnGridKernel<<<blockDim, gridDim>>>(shoalOnDevice, gridIndexesOnDevice);
+    auto start = std::chrono::high_resolution_clock::now();
+
+    splitFishesOnGridKernel<<<gridDim, blockDim>>>(xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice, shoal->N, gridIndexesOnDevice);
     status = cudaDeviceSynchronize();
     if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "splitFishesOnGridKernel: " << status << std::endl;
+        exit(1);
     }
 
-    auto zipFishParams = thrust::make_zip_iterator(
-        thrust::make_tuple (
-        shoalOnDevice->x,
-        shoalOnDevice->y,
-        shoalOnDevice->vx,
-        shoalOnDevice->vy,
-        shoalOnDevice->ax,
-        shoalOnDevice->ay
-        )
-    );
+    auto end = std::chrono::high_resolution_clock::now();
+    auto splitDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    thrust::sort_by_key(gridIndexesOnDevice, gridIndexesOnDevice + shoalOnDevice->N, zipFishParams);
+    start = std::chrono::high_resolution_clock::now();
 
-    int* gridIndexes = new int[shoal->N];
-    status = cudaMemcpy(gridIndexes, gridIndexesOnDevice,sizeof(int) * shoal->N, cudaMemcpyDeviceToHost);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-
-    int cellsStartIndexes[41 * 25];
-    int i = 0;
-    for (int j = 0; j < shoal->N; j++) {
-        if (gridIndexes[j] == i) {
-            cellsStartIndexes[i++] = j;
-        }
-    }
-
-    status = cudaMemcpy(cellsStartIndexesOnDevice, &cellsStartIndexes,sizeof(int) * 41 * 25, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-
-    computeForceKernel<<<blockDim, gridDim>>>(shoalOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice);
+    initializeFishesIndexesKernel<<<gridDim, blockDim>>>(fishesIndexes, shoal->N);
     status = cudaDeviceSynchronize();
     if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "splitFishesOnGridKernel: " << status << std::endl;
+        exit(1);
     }
 
-    updateFishKernel<<<blockDim, gridDim>>>(shoalOnDevice);
+    thrust::device_ptr<int> dFishesIndexes(fishesIndexes);
+    thrust::sort_by_key(gridIndexesOnDevice, gridIndexesOnDevice + shoal->N, dFishesIndexes);
+
+    initializeSortedParamsKernel<<<gridDim, blockDim>>>(xOnDevice, yOnDevice, vxOnDevice, vyOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, fishesIndexes, shoal->N);
     status = cudaDeviceSynchronize();
     if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "splitFishesOnGridKernel: " << status << std::endl;
+        exit(1);
     }
 
-    status = cudaMemcpy(shoal->x, shoalOnDevice->x,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    sortParamsKernel<<<gridDim, blockDim>>>(xOnDevice, yOnDevice, vxOnDevice, vyOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, shoal->N);
     if (status != cudaSuccess) {
-        exit(0);
-    }
-    status = cudaMemcpy(shoal->y, shoalOnDevice->y,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-    status = cudaMemcpy(shoal->vx, shoalOnDevice->vx,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-    status = cudaMemcpy(shoal->vy, shoalOnDevice->vy,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-    status = cudaMemcpy(shoal->ax, shoalOnDevice->ax,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
-    if (status != cudaSuccess) {
-        exit(0);
-    }
-    status = cudaMemcpy(shoal->ay, shoalOnDevice->ay,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
-    if (status != cudaSuccess) {
-        exit(0);
+        std::cerr << "splitFishesOnGridKernel: " << status << std::endl;
+        exit(1);
     }
 
-    cudaFree(shoalArraysOnDevice.x);
-    cudaFree(shoalArraysOnDevice.y);
-    cudaFree(shoalArraysOnDevice.vx);
-    cudaFree(shoalArraysOnDevice.vy);
-    cudaFree(shoalArraysOnDevice.ax);
-    cudaFree(shoalArraysOnDevice.ay);
-    cudaFree(gridIndexesOnDevice);
-    cudaFree(cellsStartIndexesOnDevice);
+    end = std::chrono::high_resolution_clock::now();
+    auto thrustSortDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+    start = std::chrono::high_resolution_clock::now();
+    dim3 gridDimForCells((CELLSNUM + blockDim.x - 1) / blockDim.x);
+    resetCellsStartIndexesKernel<<<gridDimForCells, blockDim>>>(cellsStartIndexesOnDevice, CELLSNUM);
+    status = cudaDeviceSynchronize();
+    if (status != cudaSuccess) {
+        std::cerr << "computeForceKernel: " << status << std::endl;
+        exit(1);
+    }
+    findCellsStartIndexesKernel<<<gridDim, blockDim>>>(cellsStartIndexesOnDevice, gridIndexesOnDevice, shoal->N);
+    end = std::chrono::high_resolution_clock::now();
+    auto cellsStartDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+    start = std::chrono::high_resolution_clock::now();
+    computeForceKernel<<<gridDim, blockDim>>>(xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice, shoal->N, gridIndexesOnDevice, cellsStartIndexesOnDevice);
+    status = cudaDeviceSynchronize();
+    if (status != cudaSuccess) {
+        std::cerr << "computeForceKernel: " << status << std::endl;
+        exit(1);
+    }
+    end = std::chrono::high_resolution_clock::now();
+    auto computeForcesDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+    start = std::chrono::high_resolution_clock::now();
+    updateFishKernel<<<gridDim, blockDim>>>(xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice, shoal->N);
+    status = cudaDeviceSynchronize();
+    if (status != cudaSuccess) {
+        std::cerr << "updateFishKernel: " << status << std::endl;
+        exit(1);
+    }
+    end = std::chrono::high_resolution_clock::now();
+    auto updateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+    start = std::chrono::high_resolution_clock::now();
+    status = cudaMemcpy(shoal->x, xOnDevice,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        std::cerr << "Memcpy to host x: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMemcpy(shoal->y, yOnDevice,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        std::cerr << "Memcpy to host y: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMemcpy(shoal->vx, vxOnDevice,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        std::cerr << "Memcpy to host vx: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMemcpy(shoal->vy, vyOnDevice,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        std::cerr << "Memcpy to host vy: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMemcpy(shoal->ax, axOnDevice,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        std::cerr << "Memcpy to host ax: " << status << std::endl;
+        exit(1);
+    }
+    status = cudaMemcpy(shoal->ay, ayOnDevice,sizeof(float) * shoal->N, cudaMemcpyDeviceToHost);
+    if (status != cudaSuccess) {
+        std::cerr << "Memcpy to host ay: " << status << std::endl;
+        exit(1);
+    }
+    end = std::chrono::high_resolution_clock::now();
+    auto copyingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+    // std::cout << "Times: " << splitDuration.count() << " " << thrustSortDuration.count() << " " <<
+    //     cellsStartDuration.count() << " " << computeForcesDuration.count() << " " << updateDuration.count() << " " <<
+    //         copyingDuration.count() << std::endl;
+}
+
+void freeMemoryOnGPU(float** xOnDevice, float** yOnDevice, float** vxOnDevice, float** vyOnDevice,
+    float** axOnDevice, float** ayOnDevice, int** gridIndexesOnDevice, int** cellsStartIndexesOnDevice) {
+    cudaFree(*xOnDevice);
+    cudaFree(*yOnDevice);
+    cudaFree(*vxOnDevice);
+    cudaFree(*vyOnDevice);
+    cudaFree(*axOnDevice);
+    cudaFree(*ayOnDevice);
+    cudaFree(*gridIndexesOnDevice);
+    cudaFree(*cellsStartIndexesOnDevice);
 }
 

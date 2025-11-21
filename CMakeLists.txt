@@ -23,6 +23,7 @@ add_executable(Shoal_Fish_Animation
         src/gui/FishCanvas.cpp
         src/gui/FishCanvas.h
         src/gpu/kernel.cu
+        src/gpu/kernel.h
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets)

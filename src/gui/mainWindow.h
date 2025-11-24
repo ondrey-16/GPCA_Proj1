@@ -7,7 +7,9 @@
 
 #include <QMainWindow>
 #include <QLabel>
+#include <QSlider>
 #include "FishCanvas.h"
+#include <QVBoxLayout>
 
 
 QT_BEGIN_NAMESPACE
@@ -28,6 +30,12 @@ public:
 private:
     Ui::mainWindow *ui;
     FishCanvas* canvas;
+    QSlider* alignmentRedSlider;
+    QSlider* separationRedSlider;
+    QSlider* cohesionRedSlider;
+    QSlider* alignmentGreenSlider;
+    QSlider* separationGreenSlider;
+    QSlider* cohesionGreenSlider;
 };
 
 

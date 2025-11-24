@@ -17,6 +17,12 @@ class FishCanvas : public QWidget {
 public:
     FishCanvas(QWidget* parent = nullptr);
     ~FishCanvas();
+    void setAlignmentWeightRed(int value);
+    void setSeparationWeightRed(int value);
+    void setCohesionWeightRed(int value);
+    void setAlignmentWeightGreen(int value);
+    void setSeparationWeightGreen(int value);
+    void setCohesionWeightGreen(int value);
 private:
     void paintEvent(QPaintEvent *) override;
     void onUpdate();
@@ -25,7 +31,9 @@ private:
     cudaFishesParams shoalGPU;
     float fishesSize = 3.0;
     QTimer* timer;
+    QPoint* pos;
     int N;
+    int* ifRedOnDevice;
     float* xOnDevice;
     float* yOnDevice;
     float* vxOnDevice;
@@ -38,7 +46,14 @@ private:
     float* nyOnDevice;
     float* nvxOnDevice;
     float* nvyOnDevice;
+    int* nifRedOnDevice;
     int* fishesIndexes;
+    float awR;
+    float swR;
+    float cwR;
+    float awG;
+    float swG;
+    float cwG;
 };
 
 

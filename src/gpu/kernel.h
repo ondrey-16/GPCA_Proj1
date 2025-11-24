@@ -18,6 +18,7 @@ struct cudaFishesParams {
     float vy[COUNT];
     float ax[COUNT];
     float ay[COUNT];
+    int ifRed[COUNT];
 
     cudaFishesParams() {}
 };
@@ -39,33 +40,37 @@ __device__ cudaVector add(float x1, float y1, float x2, float y2);
 __device__ cudaVector sub(float x1, float y1, float x2, float y2);
 __device__ cudaVector mul(float x1, float y1, float x2, float y2);
 __device__ cudaVector div(float x1, float y1, float x2, float y2);
-__device__ cudaVector separate(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int start, int end, int fishIdx, int* count);
-__device__ cudaVector align(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int start, int end, int fishIdx, int* count);
-__device__ cudaVector cohere(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int start, int end, int fishIdx, int* count);
+__device__ cudaVector separate(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int start, int end, int fishIdx, int* count);
+__device__ cudaVector align(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int start, int end, int fishIdx, int* count);
+__device__ cudaVector cohere(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int start, int end, int fishIdx, int* count);
 __device__ void normalizeSteerVector(cudaVector* steer, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx, int count);
 __device__ void normalizeCohesionSteerVector(cudaVector* steer, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx, int count);
-__device__ void flock(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx, int fx, int fy, const int* cellsStartIndexes);
-__device__ void update(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx);
-__device__ void borders(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx);
+__device__ cudaVector avoidObstacle(float* x, float* y, float* vx, float* vy, int N, int fishIdx);
+__device__ int intersection(cudaVector rayStart, cudaVector rayDirection);
+__device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx, int fx, int fy, const int* cellsStartIndexes);
+__device__ void update(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx);
+__device__ void borders(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx);
 
-__global__ void splitFishesOnGridKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int* indexes);
+__global__ void splitFishesOnGridKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int* indexes);
 __global__ void resetCellsStartIndexesKernel(int* cellsStartIndexes, int cellsN);
 __global__ void findCellsStartIndexesKernel(int* cellsStartIndexes, int* gridIndexes, int N);
 __global__ void initializeFishesIndexesKernel(int* fishesIndexes, int N);
-__global__ void initializeSortedParamsKernel(float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx, float* nvy, int* fishesIndexes, int N);
-__global__ void sortParamsKernel(float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx, float* nvy, int N);
-__global__ void computeForceKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int* gridIndexes, const int* cellsStartIndexes);
-__global__ void updateFishKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N);
+__global__ void initializeSortedParamsKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx, float* nvy, int* fishesIndexes, int N);
+__global__ void sortParamsKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx, float* nvy, int N);
+__global__ void computeForceKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int* gridIndexes, const int* cellsStartIndexes);
+__global__ void updateFishKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N);
 
 void initializeFishesParams(int N, cudaFishesParams* shoal);
-void updateShoalSceneOnGPU(cudaFishesParams* shoal, float* xOnDevice, float* yOnDevice, float* vxOnDevice, float* vyOnDevice,
-    float* axOnDevice, float* ayOnDevice, float* nxOnDevice, float* nyOnDevice, float* nvxOnDevice, float* nvyOnDevice,
-    int* gridIndexesOnDevice, int* cellsStartIndexesOnDevice, int* fishesIndexes);
-void initializeMemoryOnGPU(cudaFishesParams* shoal, float** xOnDevice, float** yOnDevice, float** vxOnDevice, float** vyOnDevice,
-    float** axOnDevice, float** ayOnDevice, float** nxOnDevice, float** nyOnDevice, float** nvxOnDevice, float** nvyOnDevice,
+void updateShoalSceneOnGPU(cudaFishesParams* shoal, int* ifRedOnDevice,  float* xOnDevice, float* yOnDevice, float* vxOnDevice, float* vyOnDevice,
+    float* axOnDevice, float* ayOnDevice, float* nxOnDevice, float* nyOnDevice, float* nvxOnDevice, float* nvyOnDevice, int* nifOnRedDevice,
+    int* gridIndexesOnDevice, int* cellsStartIndexesOnDevice, int* fishesIndexes, float cx, float cy, float swR,
+    float awR, float cwR, float swG, float awG, float cwG);
+void initializeMemoryOnGPU(cudaFishesParams* shoal, int** ifRedOnDevice, float** xOnDevice, float** yOnDevice, float** vxOnDevice, float** vyOnDevice,
+    float** axOnDevice, float** ayOnDevice, float** nxOnDevice, float** nyOnDevice, float** nvxOnDevice, float** nvyOnDevice, int** nifRedOnDevice,
     int** gridIndexesOnDevice, int** cellsStartIndexesOnDevice, int** fishesIndexes);
 
-void freeMemoryOnGPU(float** xOnDevice, float** yOnDevice, float** vxOnDevice, float** vyOnDevice,
-    float** axOnDevice, float** ayOnDevice, int** gridIndexesOnDevice, int** cellsStartIndexesOnDevice);
+void freeMemoryOnGPU(int** ifOnRedDevice, float** xOnDevice, float** yOnDevice, float** vxOnDevice, float** vyOnDevice,
+    float** axOnDevice, float** ayOnDevice, float** nxOnDevice, float** nyOnDevice, float** nvxOnDevice,
+    float** nvyOnDevice, int** nifOnRedDevice, int** gridIndexesOnDevice, int** cellsStartIndexesOnDevice, int** fishesIndexes);
 
 #endif //SHOAL_FISH_ANIMATION_KERNEL_H

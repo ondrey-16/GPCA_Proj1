@@ -20,9 +20,10 @@ FishCanvas::FishCanvas(QWidget *parent) {
         Fish* f = new Fish(x, y, vx, vy);
         shoal.push_back(f);
     }
+
     initializeFishesParams(N, &shoalGPU);
-    initializeMemoryOnGPU(&shoalGPU, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
-        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+    initializeMemoryOnGPU(&shoalGPU, &ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
+        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &FishCanvas::onUpdate);
     timer->start(33);
@@ -32,26 +33,61 @@ FishCanvas::~FishCanvas() {
     for (auto& f : shoal) {
         delete f;
     }
-    freeMemoryOnGPU(&xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
-        &gridIndexesOnDevice, &cellsStartIndexesOnDevice);
+    freeMemoryOnGPU(&ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
+        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+}
+
+void FishCanvas::setAlignmentWeightRed(int value) {
+    awR = static_cast<float>(value) / 10.0f;
+}
+
+void FishCanvas::setSeparationWeightRed(int value) {
+    swR = static_cast<float>(value) / 10.0f;
+}
+
+void FishCanvas::setCohesionWeightRed(int value) {
+    cwR = static_cast<float>(value) / 10.0f;
+}
+
+void FishCanvas::setAlignmentWeightGreen(int value) {
+    awG = static_cast<float>(value) / 10.0f;
+}
+
+void FishCanvas::setSeparationWeightGreen(int value) {
+    swG = static_cast<float>(value) / 10.0f;
+}
+
+void FishCanvas::setCohesionWeightGreen(int value) {
+    cwG = static_cast<float>(value) / 10.0f;
 }
 
 void FishCanvas::paintEvent(QPaintEvent *paint_event) {
     QPainter painter(this);
     painter.fillRect(rect(), Qt::black);
-    painter.setBrush(Qt::red);
     painter.setPen(Qt::black);
 
     // for (auto& fish : shoal) {
     //     painter.drawEllipse(fish->location.x, fish->location.y, 8, 8);
     // }
     for (int i = 0; i < N; i++) {
+        if (shoalGPU.ifRed[i] == 1) {
+            painter.setBrush(Qt::red);
+        }
+        else {
+            painter.setBrush(Qt::green);
+        }
         painter.drawEllipse(shoalGPU.x[i], shoalGPU.y[i], 8, 8);
     }
 }
 
 void FishCanvas::onUpdate() {
     auto start = std::chrono::high_resolution_clock::now();
+
+    QPoint globalPos = QCursor::pos();
+    QPoint localPos = this->mapFromGlobal(globalPos);
+
+    float cx = localPos.x();
+    float cy = localPos.y();
 
     // for (int i = 0; i < 41; i++) {
     //     for (int j = 0; j < 25; j++) {
@@ -85,11 +121,12 @@ void FishCanvas::onUpdate() {
     //
     // update();
 
-    updateShoalSceneOnGPU(&shoalGPU, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
-        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice, fishesIndexes);
+    updateShoalSceneOnGPU(&shoalGPU, ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice, fishesIndexes,
+        cx, cy, swR, awR, cwR, swG, awG, cwG);
     update();
 
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Update time: " << duration.count() << std::endl;
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    std::cout << "Update speed: " << 1e9 / duration.count() << " FPS" << std::endl;
 }

@@ -36,7 +36,7 @@ private:
     QSlider* alignmentGreenSlider;
     QSlider* separationGreenSlider;
     QSlider* cohesionGreenSlider;
-    int ifCPU;
+    int ifGPU;
 };
 
 

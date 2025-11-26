@@ -3,10 +3,13 @@
 //
 
 #include "mainWindow.h"
+
+#include "FishCanvasGPU.h"
+#include "FishCanvasCPU.h"
 #include "ui_mainWindow.h"
 
 
-mainWindow::mainWindow(int ifCPU, QWidget *parent) : QMainWindow(parent), ui(new Ui::mainWindow), ifCPU(ifCPU) {
+mainWindow::mainWindow(int ifGPU, QWidget *parent) : QMainWindow(parent), ui(new Ui::mainWindow), ifGPU(ifGPU) {
     ui->setupUi(this);
     this->setWindowTitle("Shoal Fish Animation");
     this->resize(2000, 1200);
@@ -58,7 +61,12 @@ mainWindow::mainWindow(int ifCPU, QWidget *parent) : QMainWindow(parent), ui(new
     controlsLayout->addWidget(cohesionGreenSlider);
 
     layout->addWidget(controlsPanel);
-    canvas = new FishCanvas(ifCPU, this);
+    if (ifGPU) {
+        canvas = new FishCanvasGPU(this);
+    }
+    else {
+        canvas = new FishCanvasCPU(this);
+    }
     layout->addWidget(canvas, 1);
 
     connect(alignmentRedSlider, &QSlider::valueChanged,

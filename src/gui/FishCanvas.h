@@ -5,17 +5,17 @@
 #ifndef SHOAL_FISH_ANIMATION_FISHCANVAS_H
 #define SHOAL_FISH_ANIMATION_FISHCANVAS_H
 
-#include <vector>
+#include <cmath>
 #include <QPainter>
 #include <QWidget>
 #include <QTimer>
 
-#include "../model/Fish.h"
-#include "../gpu/kernel.h"
+#define COUNT 3000
 
 class FishCanvas : public QWidget {
+    Q_OBJECT
 public:
-    FishCanvas(int ifCPU, QWidget* parent = nullptr);
+    FishCanvas(QWidget* parent = nullptr);
     ~FishCanvas();
     void setAlignmentWeightRed(int value);
     void setSeparationWeightRed(int value);
@@ -23,42 +23,17 @@ public:
     void setAlignmentWeightGreen(int value);
     void setSeparationWeightGreen(int value);
     void setCohesionWeightGreen(int value);
-    void paintCPU(QPainter& painter);
-    void paintGPU(QPainter& painter);
-    void updateCPU(float cx, float cy);
-    void updateGPU(float cx, float cy);
-private:
-    void paintEvent(QPaintEvent *) override;
-    void onUpdate();
-    std::vector<std::vector<std::vector<Fish*>>> fishesOnGrid;
-    std::vector<Fish*> shoal;
-    cudaFishesParams shoalGPU;
+protected:
     float fishesSize = 3.0;
     QTimer* timer;
     QPoint* pos;
     int N;
-    int* ifRedOnDevice;
-    float* xOnDevice;
-    float* yOnDevice;
-    float* vxOnDevice;
-    float* vyOnDevice;
-    float* axOnDevice;
-    float* ayOnDevice;
-    int* gridIndexesOnDevice;
-    int* cellsStartIndexesOnDevice;
-    float* nxOnDevice;
-    float* nyOnDevice;
-    float* nvxOnDevice;
-    float* nvyOnDevice;
-    int* nifRedOnDevice;
-    int* fishesIndexes;
     float awR;
     float swR;
     float cwR;
     float awG;
     float swG;
     float cwG;
-    int ifGPU;
 };
 
 

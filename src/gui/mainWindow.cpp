@@ -6,7 +6,7 @@
 #include "ui_mainWindow.h"
 
 
-mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::mainWindow) {
+mainWindow::mainWindow(int ifCPU, QWidget *parent) : QMainWindow(parent), ui(new Ui::mainWindow), ifCPU(ifCPU) {
     ui->setupUi(this);
     this->setWindowTitle("Shoal Fish Animation");
     this->resize(2000, 1200);
@@ -58,7 +58,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::mainWi
     controlsLayout->addWidget(cohesionGreenSlider);
 
     layout->addWidget(controlsPanel);
-    canvas = new FishCanvas(this);
+    canvas = new FishCanvas(ifCPU, this);
     layout->addWidget(canvas, 1);
 
     connect(alignmentRedSlider, &QSlider::valueChanged,

@@ -24,7 +24,7 @@ class mainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    explicit mainWindow(QWidget *parent = nullptr);
+    explicit mainWindow(int ifCPU, QWidget *parent = nullptr);
     ~mainWindow() override;
 
 private:
@@ -36,6 +36,7 @@ private:
     QSlider* alignmentGreenSlider;
     QSlider* separationGreenSlider;
     QSlider* cohesionGreenSlider;
+    int ifCPU;
 };
 
 

@@ -3,11 +3,21 @@
 //
 
 #include <QApplication>
+#include <iostream>
 #include "gui/mainWindow.h"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
-    mainWindow w;
+    if (argc != 2) {
+        std::cerr << "Invalid args count";
+        exit(1);
+    }
+    int ifCPU = atoi(argv[1]);
+    if (ifCPU != 0 && ifCPU != 1) {
+        std::cerr << "Invalid args";
+        exit(1);
+    }
+    mainWindow w(ifCPU);
     w.show();
     return app.exec();
 }

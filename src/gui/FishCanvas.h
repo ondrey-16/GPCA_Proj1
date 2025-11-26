@@ -15,7 +15,7 @@
 
 class FishCanvas : public QWidget {
 public:
-    FishCanvas(QWidget* parent = nullptr);
+    FishCanvas(int ifCPU, QWidget* parent = nullptr);
     ~FishCanvas();
     void setAlignmentWeightRed(int value);
     void setSeparationWeightRed(int value);
@@ -23,6 +23,10 @@ public:
     void setAlignmentWeightGreen(int value);
     void setSeparationWeightGreen(int value);
     void setCohesionWeightGreen(int value);
+    void paintCPU(QPainter* painter);
+    void paintGPU(QPainter* painter);
+    void updateCPU(float cx, float cy);
+    void updateGPU(float cx, float cy);
 private:
     void paintEvent(QPaintEvent *) override;
     void onUpdate();
@@ -54,6 +58,7 @@ private:
     float awG;
     float swG;
     float cwG;
+    int ifGPU;
 };
 
 

@@ -144,9 +144,10 @@ __device__ cudaVector avoidObstacle(float* x, float* y, float* vx, float* vy, in
     cudaVector rayStart(x[fishIdx], y[fishIdx]);
     if (intersection(rayStart, rayDirection) == 1) {
         cudaVector fromObstacle(rayStart.x - CX, rayStart.y - CY);
-        float toObstacleMag = magnitude(fromObstacle.x, fromObstacle.y);
-        cudaVector toObstacleDirection(fromObstacle.x / toObstacleMag, fromObstacle.y / toObstacleMag);
-        cudaVector avoidForce(toObstacleDirection.x * vMag, toObstacleDirection.y * vMag);
+        float fromObstacleMag = magnitude(fromObstacle.x, fromObstacle.y);
+        cudaVector fromObstacleDirection(fromObstacle.x / fromObstacleMag, fromObstacle.y / fromObstacleMag);
+        cudaVector avoidForce(fromObstacleDirection.x * vMag, fromObstacleDirection.y * vMag);
+        limit(&avoidForce.x, &avoidForce.y, maxForce);
         return avoidForce;
     }
     return cudaVector(0, 0);
@@ -241,8 +242,8 @@ __device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, floa
     float sw = (ifRed[fishIdx] == 1) ? separationWeightRed : separationWeightGreen;
     float cw = (ifRed[fishIdx] == 1) ? cohesionWeightRed : cohesionWeightGreen;
 
-    ax[fishIdx] = ali.x * aw + coh.x * cw + sep.x * sw + 1.5 * avoid.x;
-    ay[fishIdx] = ali.y * aw + coh.y * cw + sep.y * sw + 1.5 * avoid.y;
+    ax[fishIdx] = ali.x * aw + coh.x * cw + sep.x * sw + 2 * avoid.x;
+    ay[fishIdx] = ali.y * aw + coh.y * cw + sep.y * sw + 2 * avoid.y;
 }
 
 __device__ void update(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int fishIdx) {

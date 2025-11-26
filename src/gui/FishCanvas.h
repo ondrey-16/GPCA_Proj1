@@ -23,8 +23,8 @@ public:
     void setAlignmentWeightGreen(int value);
     void setSeparationWeightGreen(int value);
     void setCohesionWeightGreen(int value);
-    void paintCPU(QPainter* painter);
-    void paintGPU(QPainter* painter);
+    void paintCPU(QPainter& painter);
+    void paintGPU(QPainter& painter);
     void updateCPU(float cx, float cy);
     void updateGPU(float cx, float cy);
 private:

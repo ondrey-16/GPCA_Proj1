@@ -17,7 +17,8 @@ FishCanvas::FishCanvas(int ifCPU, QWidget *parent) : ifGPU(ifCPU) {
         int y = rand() % 1200;
         float vx = rand() % 4000 - 2000;
         float vy = rand() % 2400 - 1200;
-        Fish* f = new Fish(x, y, vx, vy);
+        bool isRed = i % 2 == 0;
+        Fish* f = new Fish(x, y, vx, vy, isRed);
         shoal.push_back(f);
     }
 
@@ -61,22 +62,27 @@ void FishCanvas::setCohesionWeightGreen(int value) {
     cwG = static_cast<float>(value) / 10.0f;
 }
 
-void FishCanvas::paintCPU(QPainter* painter) {
+void FishCanvas::paintCPU(QPainter& painter) {
     for (auto& fish : shoal) {
-        painter->setBrush(Qt::red);
-        painter->drawEllipse(fish->location.x, fish->location.y, 8, 8);
+        if (fish->isRed) {
+            painter.setBrush(Qt::red);
+        }
+        else {
+            painter.setBrush(Qt::green);
+        }
+        painter.drawEllipse(fish->location.x, fish->location.y, 8, 8);
     }
 }
 
-void FishCanvas::paintGPU(QPainter *painter) {
+void FishCanvas::paintGPU(QPainter& painter) {
     for (int i = 0; i < N; i++) {
         if (shoalGPU.ifRed[i] == 1) {
-            painter->setBrush(Qt::red);
+            painter.setBrush(Qt::red);
         }
         else {
-            painter->setBrush(Qt::green);
+            painter.setBrush(Qt::green);
         }
-        painter->drawEllipse(shoalGPU.x[i], shoalGPU.y[i], 8, 8);
+        painter.drawEllipse(shoalGPU.x[i], shoalGPU.y[i], 8, 8);
     }
 }
 
@@ -105,7 +111,7 @@ void FishCanvas::updateCPU(float cx, float cy) {
                 }
             }
         }
-        fish->applyForce(shoalPart);
+        fish->applyForce(shoalPart, cx, cy);
     }
     for (auto& fish : shoal) {
         fish->update();
@@ -124,10 +130,10 @@ void FishCanvas::paintEvent(QPaintEvent *paint_event) {
     painter.setPen(Qt::black);
 
     if (ifGPU == 0) {
-        paintCPU(&painter);
+        paintCPU(painter);
     }
     else {
-        paintGPU(&painter);
+        paintGPU(painter);
     }
 }
 

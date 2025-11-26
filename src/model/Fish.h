@@ -19,14 +19,17 @@ public:
     static float separationWeight;
     static float alignmentWeight;
     static float cohesionWeight;
+    bool isRed;
     Fish() = default;
-    Fish(float x, float y, float vx, float vy);
+    Fish(float x, float y, float vx, float vy, bool isRed);
     Vector separate(const std::vector<Fish*>& fishes) const;
     Vector align(const std::vector<Fish*>& fishes) const;
     Vector cohere(const std::vector<Fish*>& fishes) const;
-    void applyForce(const std::vector<Fish*>& fishes);
+    Vector avoidObstacle(float& cx, float& cy) const;
+    bool intersection(float& cx, float& cy, Vector& rayStart, Vector& rayDirection) const;
+    void applyForce(const std::vector<Fish*>& fishes, float& cx, float& cy);
     void update();
-    void flock(const std::vector<Fish*>& fishes);
+    void flock(const std::vector<Fish*>& fishes, float& cx, float& cy);
     void borders();
 };
 

@@ -12,6 +12,7 @@ set(CMAKE_AUTORCC ON)
 
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
 find_package(SFML 2.6 COMPONENTS graphics window system REQUIRED)
+find_package(Qt5 REQUIRED COMPONENTS OpenGL)
 
 add_executable(Shoal_Fish_Animation
         src/main.cpp
@@ -32,3 +33,4 @@ add_executable(Shoal_Fish_Animation
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets)
 target_link_libraries(${PROJECT_NAME} PRIVATE sfml-graphics sfml-window sfml-system)
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::OpenGL)

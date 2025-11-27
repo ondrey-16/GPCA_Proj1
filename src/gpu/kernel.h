@@ -11,7 +11,6 @@
 #define CELLSNUM 1025
 
 struct cudaFishesParams {
-    const int N = COUNT;
     float x[COUNT];
     float y[COUNT];
     float vx[COUNT];
@@ -55,14 +54,15 @@ __global__ void splitFishesOnGridKernel(int* ifRed, float* x, float* y, float* v
 __global__ void resetCellsStartIndexesKernel(int* cellsStartIndexes, int cellsN);
 __global__ void findCellsStartIndexesKernel(int* cellsStartIndexes, int* gridIndexes, int N);
 __global__ void initializeFishesIndexesKernel(int* fishesIndexes, int N);
-__global__ void initializeSortedParamsKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx, float* nvy, int* fishesIndexes, int N);
+__global__ void initializeSortedParamsKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx, float* nvy, int* nifRed, int* fishesIndexes, int N);
 __global__ void sortParamsKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx, float* nvy, int N);
 __global__ void computeForceKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int* gridIndexes, const int* cellsStartIndexes);
 __global__ void updateFishKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N);
+__global__ void copyToVBOKernel(float* vbo, int* ifRed, float* x, float* y, float* vx, float* vy, int N);
 
-void initializeFishesParams(int N, cudaFishesParams* shoal);
-void updateShoalSceneOnGPU(cudaFishesParams* shoal, int* ifRedOnDevice,  float* xOnDevice, float* yOnDevice, float* vxOnDevice, float* vyOnDevice,
-    float* axOnDevice, float* ayOnDevice, float* nxOnDevice, float* nyOnDevice, float* nvxOnDevice, float* nvyOnDevice, int* nifOnRedDevice,
+void initializeFishesParams(cudaFishesParams* shoal);
+void updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaFishesParams* shoal, int* ifRedOnDevice,  float* xOnDevice, float* yOnDevice, float* vxOnDevice, float* vyOnDevice,
+    float* axOnDevice, float* ayOnDevice, float* nxOnDevice, float* nyOnDevice, float* nvxOnDevice, float* nvyOnDevice, int* nifRedOnDevice,
     int* gridIndexesOnDevice, int* cellsStartIndexesOnDevice, int* fishesIndexes, float cx, float cy, float swR,
     float awR, float cwR, float swG, float awG, float cwG);
 void initializeMemoryOnGPU(cudaFishesParams* shoal, int** ifRedOnDevice, float** xOnDevice, float** yOnDevice, float** vxOnDevice, float** vyOnDevice,

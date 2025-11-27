@@ -6,13 +6,14 @@
 #define SHOAL_FISH_ANIMATION_FISHCANVAS_H
 
 #include <cmath>
+#include <QOpenGLFunctions>
 #include <QPainter>
-#include <QWidget>
 #include <QTimer>
+#include <QOpenGLWidget>
 
 #define COUNT 3000
 
-class FishCanvas : public QWidget {
+class FishCanvas : public QOpenGLWidget {
     Q_OBJECT
 public:
     FishCanvas(QWidget* parent = nullptr);

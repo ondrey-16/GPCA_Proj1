@@ -7,15 +7,25 @@
 #include "FishCanvas.h"
 #include "../gpu/kernel.h"
 #include <iostream>
+#include <QOpenGLFunctions_3_3_Core>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLContext>
+#include <cuda_gl_interop.h>
 
-class FishCanvasGPU : public FishCanvas {
+class FishCanvasGPU : public FishCanvas, protected QOpenGLFunctions_3_3_Core{
+    Q_OBJECT
 public:
     FishCanvasGPU(QWidget* parent = nullptr);
     ~FishCanvasGPU();
 private:
-    void paintEvent(QPaintEvent *) override;
+    void initializeGL();
+    void paintGL() override;
     void onUpdate();
     cudaFishesParams shoalGPU;
+    cudaGraphicsResource_t shoalGPUResource;
+    QOpenGLShaderProgram *shaderProgram;
+    GLuint vao;
+    GLuint vbo;
     int* ifRedOnDevice;
     float* xOnDevice;
     float* yOnDevice;

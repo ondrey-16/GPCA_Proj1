@@ -11,7 +11,7 @@
 #include <QTimer>
 #include <QOpenGLWidget>
 
-#define COUNT 3000
+#define COUNT 10000
 
 class FishCanvas : public QOpenGLWidget {
     Q_OBJECT

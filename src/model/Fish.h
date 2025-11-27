@@ -16,9 +16,12 @@ public:
     Vector acceleration;
     static float maxVelocity;
     static float maxForce;
-    static float separationWeight;
-    static float alignmentWeight;
-    static float cohesionWeight;
+    static float separationWeightRed;
+    static float alignmentWeightRed;
+    static float cohesionWeightRed;
+    static float separationWeightGreen;
+    static float alignmentWeightGreen;
+    static float cohesionWeightGreen;
     bool isRed;
     Fish() = default;
     Fish(float x, float y, float vx, float vy, bool isRed);

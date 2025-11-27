@@ -54,6 +54,13 @@ void FishCanvasCPU::paintEvent(QPaintEvent *paint_event) {
 }
 
 void FishCanvasCPU::onUpdate() {
+    Fish::alignmentWeightRed = awR;
+    Fish::alignmentWeightGreen = awG;
+    Fish::cohesionWeightRed = cwR;
+    Fish::cohesionWeightGreen = cwG;
+    Fish::separationWeightRed = swR;
+    Fish::separationWeightGreen = swG;
+
     auto start = std::chrono::high_resolution_clock::now();
     QPoint globalPos = QCursor::pos();
     QPoint localPos = this->mapFromGlobal(globalPos);

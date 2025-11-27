@@ -7,7 +7,7 @@
 
 #include "cuda_runtime.h"
 
-#define COUNT 3000
+#define COUNT 10000
 #define CELLSNUM 1025
 
 struct cudaFishesParams {

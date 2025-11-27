@@ -6,9 +6,12 @@
 
 float Fish::maxForce = 0.5f;
 float Fish::maxVelocity = 3.5f;
-float Fish::separationWeight = 1.6f;
-float Fish::alignmentWeight = 1.0f;
-float Fish::cohesionWeight = 0.8f;
+float Fish::separationWeightRed = 1.6f;
+float Fish::alignmentWeightRed = 1.0f;
+float Fish::cohesionWeightRed = 0.8f;
+float Fish::separationWeightGreen = 1.6f;
+float Fish::alignmentWeightGreen = 1.0f;
+float Fish::cohesionWeightGreen = 0.8f;
 
 Fish::Fish(float x, float y, float vx, float vy, bool isRed) {
     this->acceleration = Vector(0, 0);
@@ -137,8 +140,10 @@ void Fish::flock(const std::vector<Fish*> &fishes, float& cx, float& cy) {
     Vector ali = align(fishes);
     Vector coh = cohere(fishes);
     Vector avo = avoidObstacle(cx, cy);
-    acceleration = ali * this->alignmentWeight + coh * this->cohesionWeight + sep * this->separationWeight
-    + avo * 2.0f;
+    float aw = (isRed) ? alignmentWeightRed : alignmentWeightGreen;
+    float cw = (isRed) ? cohesionWeightRed : cohesionWeightGreen;
+    float sw = (isRed) ? separationWeightRed : separationWeightGreen;
+    acceleration = ali * aw + coh * cw + sep * sw + avo * 2.0f;
 }
 
 void Fish::borders() {

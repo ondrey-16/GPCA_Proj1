@@ -8,15 +8,14 @@
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
-    int ifGPU;
     if (argc != 2) {
-        ifGPU = 1;
+        std::cerr << "Invalid args count";
+        exit(1);
     }
-    else {
-        atoi(argv[1]);
-        if (ifGPU != 0 && ifGPU != 1) {
-            ifGPU = 1;
-        }
+    int ifGPU = atoi(argv[1]);
+    if (ifGPU != 0 && ifGPU != 1) {
+        std::cerr << "Invalid args";
+        exit(1);
     }
     mainWindow w(ifGPU);
     w.show();

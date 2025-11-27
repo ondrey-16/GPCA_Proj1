@@ -10,6 +10,15 @@
 #define COUNT 10000
 #define CELLSNUM 1025
 
+struct cudaFishesParams {
+    float x[COUNT];
+    float y[COUNT];
+    float vx[COUNT];
+    float vy[COUNT];
+    int ifRed[COUNT];
+    cudaFishesParams() {}
+};
+
 struct cudaArrayPtrs {
     float* x;
     float* nx;
@@ -59,7 +68,6 @@ __device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, floa
 __device__ void update(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int fishIdx);
 __device__ void borders(float* x, float* y, int fishIdx);
 
-__global__ void initializeDataKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N);
 __global__ void splitFishesOnGridKernel(float* x, float* y, int N, int* gridIndexes);
 __global__ void resetCellsStartEndIndexesKernel(int* cellsStartIndexes, int* cellsEndIndexes, int cellsN);
 __global__ void findCellsStartEndIndexesKernel(int* cellsStartIndexes, int* cellsEndIndexes, int* gridIndexes, int N);
@@ -73,9 +81,10 @@ __global__ void computeForceKernel(int* ifRed, float* x, float* y, float* vx, fl
 __global__ void updateFishKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N);
 __global__ void copyToVBOKernel(float* vbo, int* ifRed, float* x, float* y, float* vx, float* vy, int N);
 
+void initializeFishesParams(cudaFishesParams* shoal);
+cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal);
 cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs* dPtrs, float cx, float cy, float swR,
     float awR, float cwR, float swG, float awG, float cwG);
-cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs);
 bool checkCudaError(cudaError_t cudaStatus, cudaArrayPtrs* dPtrs);
 void freeMemoryOnGPU(cudaArrayPtrs* dPtrs);
 

@@ -308,13 +308,25 @@ __global__ void copyToVBOKernel(float *vbo, int *ifRed, float *x, float *y, floa
     vbo[4 * i + 3] = ifRed[i] == 1 ? 1.0f : 0.0f;
 }
 
-cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs) {
+void initializeFishesParams(cudaFishesParams* shoal) {
+    for (int i = 0; i < COUNT; i++) {
+        shoal->vx[i] = (rand() % 70 - 35) / 10.0f;
+        shoal->vy[i] = (rand() % 70 - 35) / 10.0f;
+        shoal->x[i] = rand() % 2000;
+        shoal->y[i] = rand() % 1200;
+        shoal->ifRed[i] = i % 2 == 0;
+    }
+}
+
+cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal) {
     cudaError_t status;
 
     float mf = 0.5f;
     float mv = 3.5f;
     float cx = 0.0f;
     float cy = 0.0f;
+
+    initializeFishesParams(shoal);
 
     cudaMemcpyToSymbol(maxVelocity, &mv, sizeof(float));
     cudaMemcpyToSymbol(maxForce, &mf, sizeof(float));
@@ -324,11 +336,11 @@ cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs) {
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->gridIndexes), sizeof(int) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->cellsStartIndexes), sizeof(int) * 41 * 25);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->cellsEndIndexes), sizeof(int) * 41 * 25);
     if (!checkCudaError(status, dPtrs)) {
         return status;
@@ -336,64 +348,76 @@ cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs) {
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->fishesIndexes), sizeof(int) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ifRed), sizeof(int) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->x), sizeof(float) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->y), sizeof(float) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-         }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->vx), sizeof(float) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->vy), sizeof(float) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ax), sizeof(float) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-         }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ay), sizeof(float) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-         }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nx), sizeof(float) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ny), sizeof(float) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nvx), sizeof(float) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-         }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nvy), sizeof(float) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nifRed), sizeof(int) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
 
-    dim3 blockDim(256);
-    dim3 gridDim((COUNT + blockDim.x - 1) / blockDim.x);
-
-    initializeDataKernel<<<gridDim, blockDim>>>(dPtrs->ifRed, dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, dPtrs->ax, dPtrs->ay, COUNT);
-    status = cudaDeviceSynchronize();
+    status = cudaMemcpy(dPtrs->x, shoal->x,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
     if (!checkCudaError(status, dPtrs)) {
         return status;
-        }
+    }
+    status = cudaMemcpy(dPtrs->y, shoal->y,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
+    if (!checkCudaError(status, dPtrs)) {
+        return status;
+    }
+    status = cudaMemcpy(dPtrs->vx, shoal->vx,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
+    if (!checkCudaError(status, dPtrs)) {
+        return status;
+    }
+    status = cudaMemcpy(dPtrs->vy, shoal->vy,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
+    if (!checkCudaError(status, dPtrs)) {
+        return status;
+    }
+    status = cudaMemcpy(dPtrs->ifRed, shoal->ifRed,sizeof(int) * COUNT, cudaMemcpyHostToDevice);
+    if (!checkCudaError(status, dPtrs)) {
+        return status;
+    }
     return status;
 }
 

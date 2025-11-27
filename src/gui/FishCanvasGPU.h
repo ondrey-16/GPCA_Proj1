@@ -22,25 +22,11 @@ private:
     void paintGL() override;
     void onUpdate();
     cudaArrayPtrs shoalPtrs;
+    cudaFishesParams initShoal;
     cudaGraphicsResource_t shoalGPUResource;
     QOpenGLShaderProgram *shaderProgram;
     GLuint vao;
     GLuint vbo;
-    int* ifRedOnDevice;
-    float* xOnDevice;
-    float* yOnDevice;
-    float* vxOnDevice;
-    float* vyOnDevice;
-    float* axOnDevice;
-    float* ayOnDevice;
-    int* gridIndexesOnDevice;
-    int* cellsStartIndexesOnDevice;
-    float* nxOnDevice;
-    float* nyOnDevice;
-    float* nvxOnDevice;
-    float* nvyOnDevice;
-    int* nifRedOnDevice;
-    int* fishesIndexes;
 };
 
 

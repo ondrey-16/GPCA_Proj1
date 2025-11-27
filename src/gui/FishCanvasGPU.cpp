@@ -7,7 +7,7 @@
 
 FishCanvasGPU::FishCanvasGPU(QWidget *parent) : FishCanvas(parent) {
     auto start = std::chrono::high_resolution_clock::now();
-    cudaError_t status = initializeMemoryOnGPU(&shoalPtrs);
+    cudaError_t status = initializeMemoryOnGPU(&shoalPtrs, &initShoal);
     if (status != cudaSuccess) {
         std::cerr << "Initializing data error " << cudaGetErrorString(status);
         freeMemoryOnGPU(&shoalPtrs);

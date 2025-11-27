@@ -11,10 +11,10 @@ FishCanvasCPU::FishCanvasCPU(QWidget *parent) : FishCanvas(parent) {
         fishesOnGrid[i].resize(25);
     }
     for (int i = 0; i < N; i++) {
-        int x = rand() % 2000;
-        int y = rand() % 1200;
-        float vx = rand() % 4000 - 2000;
-        float vy = rand() % 2400 - 1200;
+        int x = i % 2000;
+        int y = i % 1200;
+        float vx = 0;
+        float vy = 0;
         bool isRed = i % 2 == 0;
         Fish* f = new Fish(x, y, vx, vy, isRed);
         shoal.push_back(f);

@@ -7,14 +7,10 @@
 
 FishCanvasGPU::FishCanvasGPU(QWidget *parent) : FishCanvas(parent) {
     auto start = std::chrono::high_resolution_clock::now();
-    initializeFishesParams(&shoalGPU);
-    cudaError_t status = initializeMemoryOnGPU(&shoalGPU, &ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
-        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+    cudaError_t status = initializeMemoryOnGPU(&shoalPtrs);
     if (status != cudaSuccess) {
         std::cerr << "Initializing data error " << cudaGetErrorString(status);
-        freeMemoryOnGPU(&ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
-        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
-        delete timer;
+        freeMemoryOnGPU(&shoalPtrs);
         exit(1);
     }
     auto end = std::chrono::high_resolution_clock::now();
@@ -26,8 +22,7 @@ FishCanvasGPU::FishCanvasGPU(QWidget *parent) : FishCanvas(parent) {
 
 FishCanvasGPU::~FishCanvasGPU() {
     auto start = std::chrono::high_resolution_clock::now();
-    freeMemoryOnGPU(&ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
-        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+    freeMemoryOnGPU(&shoalPtrs);
     delete timer;
     auto end = std::chrono::high_resolution_clock::now();
     int freeDataDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
@@ -143,8 +138,7 @@ void main() {
 
     if (status != cudaSuccess) {
         std::cerr << "Registration GL/CUDA error " << cudaGetErrorString(status);
-        freeMemoryOnGPU(&ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
-        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+        freeMemoryOnGPU(&shoalPtrs);
         delete timer;
         exit(1);
     }
@@ -182,17 +176,10 @@ void FishCanvasGPU::paintGL() {
     float cx = localPos.x();
     float cy = localPos.y();
 
-    cudaError_t status = updateShoalSceneOnGPU(shoalGPUResource, &shoalGPU,
-                          ifRedOnDevice, xOnDevice, yOnDevice,
-                          vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
-                          nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice,
-                          nifRedOnDevice, gridIndexesOnDevice,
-                          cellsStartIndexesOnDevice, fishesIndexes,
-                          cx, cy, swR, awR, cwR, swG, awG, cwG);
+    cudaError_t status = updateShoalSceneOnGPU(shoalGPUResource, &shoalPtrs, cx, cy, swR, awR, cwR, swG, awG, cwG);
     if (status != cudaSuccess) {
         std::cerr << "Updating data error " << cudaGetErrorString(status);
-        freeMemoryOnGPU(&ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
-        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+        freeMemoryOnGPU(&shoalPtrs);
         delete timer;
         exit(1);
     }

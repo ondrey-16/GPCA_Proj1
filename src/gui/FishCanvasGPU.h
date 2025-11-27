@@ -21,7 +21,7 @@ private:
     void initializeGL();
     void paintGL() override;
     void onUpdate();
-    cudaFishesParams shoalGPU;
+    cudaArrayPtrs shoalPtrs;
     cudaGraphicsResource_t shoalGPUResource;
     QOpenGLShaderProgram *shaderProgram;
     GLuint vao;

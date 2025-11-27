@@ -360,16 +360,16 @@ __global__ void copyToVBOKernel(float *vbo, int *ifRed, float *x, float *y, floa
 void initializeFishesParams(cudaFishesParams* shoal) {
     for (int i = 0; i < COUNT; i++) {
         shoal->ax[i] = 0.0f;
-        shoal->ay[i] = 0.5f;
-        shoal->vx[i] = rand() % 4000 - 2000;
-        shoal->vy[i] = rand() % 2400 - 1200;
+        shoal->ay[i] = 0.0f;
+        shoal->vx[i] = (rand() % 70 - 35) / 10.0f;
+        shoal->vy[i] = (rand() % 70 - 35) / 10.0f;
         shoal->x[i] = rand() % 2000;
         shoal->y[i] = rand() % 1200;
         shoal->ifRed[i] = i % 2 == 0;
     }
 }
 
-void initializeMemoryOnGPU(cudaFishesParams* shoal, int** ifRedOnDevice, float** xOnDevice, float** yOnDevice, float** vxOnDevice, float** vyOnDevice,
+cudaError_t initializeMemoryOnGPU(cudaFishesParams* shoal, int** ifRedOnDevice, float** xOnDevice, float** yOnDevice, float** vxOnDevice, float** vyOnDevice,
     float** axOnDevice, float** ayOnDevice, float** nxOnDevice, float** nyOnDevice, float** nvxOnDevice, float** nvyOnDevice, int** nifRedOnDevice,
     int** gridIndexesOnDevice, int** cellsStartIndexesOnDevice, int** fishesIndexes) {
     cudaError_t status;
@@ -385,122 +385,137 @@ void initializeMemoryOnGPU(cudaFishesParams* shoal, int** ifRedOnDevice, float**
     cudaMemcpyToSymbol(CY, &cy, sizeof(float));
 
     status = cudaMalloc(reinterpret_cast<void**>(gridIndexesOnDevice), sizeof(int) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc gridIndexesOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMalloc(reinterpret_cast<void**>(cellsStartIndexesOnDevice), sizeof(int) * 41 * 25);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc cellsStartIndexesOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMalloc(reinterpret_cast<void**>(fishesIndexes), sizeof(int) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc cellsStartIndexesOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMalloc(reinterpret_cast<void**>(ifRedOnDevice), sizeof(int) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc xOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMalloc(reinterpret_cast<void**>(xOnDevice), sizeof(float) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc xOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMalloc(reinterpret_cast<void**>(yOnDevice), sizeof(float) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc yOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+         *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+         }
     status = cudaMalloc(reinterpret_cast<void**>(vxOnDevice), sizeof(float) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc vxOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMalloc(reinterpret_cast<void**>(vyOnDevice), sizeof(float) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc vyOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMalloc(reinterpret_cast<void**>(axOnDevice), sizeof(float) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc axOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+         *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+         }
     status = cudaMalloc(reinterpret_cast<void**>(ayOnDevice), sizeof(float) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc ayOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+         *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+         }
     status = cudaMalloc(reinterpret_cast<void**>(nxOnDevice), sizeof(float) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc xOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMalloc(reinterpret_cast<void**>(nyOnDevice), sizeof(float) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc yOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMalloc(reinterpret_cast<void**>(nvxOnDevice), sizeof(float) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc vxOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+         *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+         }
     status = cudaMalloc(reinterpret_cast<void**>(nvyOnDevice), sizeof(float) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc vyOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMalloc(reinterpret_cast<void**>(nifRedOnDevice), sizeof(int) * COUNT);
-    if (status != cudaSuccess) {
-        std::cerr << "Malloc vyOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
 
     status = cudaMemcpy(*xOnDevice, shoal->x,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        std::cerr << "Memcpy to device xOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMemcpy(*yOnDevice, shoal->y,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        std::cerr << "Memcpy to device yOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMemcpy(*vxOnDevice, shoal->vx,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        std::cerr << "Memcpy to device vxOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMemcpy(*vyOnDevice, shoal->vy,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        std::cerr << "Memcpy to device vyOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+         *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+         }
     status = cudaMemcpy(*axOnDevice, shoal->ax,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        std::cerr << "Memcpy to device axOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMemcpy(*ayOnDevice, shoal->ay,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        std::cerr << "Memcpy to device ayOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
     status = cudaMemcpy(*ifRedOnDevice, shoal->ifRed,sizeof(int) * COUNT, cudaMemcpyHostToDevice);
-    if (status != cudaSuccess) {
-        std::cerr << "Memcpy to device ayOnDevice: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, *ifRedOnDevice, *xOnDevice, *yOnDevice, *vxOnDevice, *vyOnDevice, *axOnDevice, *ayOnDevice,
+        *nxOnDevice, *nyOnDevice, *nvxOnDevice, *nvyOnDevice, *nifRedOnDevice, *gridIndexesOnDevice, *cellsStartIndexesOnDevice, *fishesIndexes)) {
+        return status;
+        }
+    return status;
 }
 
-void updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaFishesParams* shoal, int* ifRedOnDevice,  float* xOnDevice, float* yOnDevice, float* vxOnDevice, float* vyOnDevice,
-    float* axOnDevice, float* ayOnDevice, float* nxOnDevice, float* nyOnDevice, float* nvxOnDevice, float* nvyOnDevice, int* nifRedOnDevice,
-    int* gridIndexesOnDevice, int* cellsStartIndexesOnDevice, int* fishesIndexes, float cx, float cy, float swR,
-    float awR, float cwR, float swG, float awG, float cwG) {
+bool checkCudaError(cudaError_t cudaStatus, int *ifRedOnDevice, float *xOnDevice, float *yOnDevice,
+    float *vxOnDevice, float *vyOnDevice, float *axOnDevice, float *ayOnDevice, float *nxOnDevice,
+    float *nyOnDevice, float *nvxOnDevice, float *nvyOnDevice, int *nifRedOnDevice, int *gridIndexesOnDevice,
+    int *cellsStartIndexesOnDevice, int *fishesIndexes) {
+
+    if (cudaStatus != cudaSuccess) {
+        std::cerr << cudaGetErrorString(cudaStatus) << std::endl;
+        freeMemoryOnGPU(&ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
+        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+        return false;
+    }
+    return true;
+}
+
+cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaFishesParams* shoal, int* ifRedOnDevice,  float* xOnDevice, float* yOnDevice, float* vxOnDevice, float* vyOnDevice,
+                           float* axOnDevice, float* ayOnDevice, float* nxOnDevice, float* nyOnDevice, float* nvxOnDevice, float* nvyOnDevice, int* nifRedOnDevice,
+                           int* gridIndexesOnDevice, int* cellsStartIndexesOnDevice, int* fishesIndexes, float cx, float cy, float swR,
+                           float awR, float cwR, float swG, float awG, float cwG) {
 
     cudaError_t status;
 
@@ -508,15 +523,15 @@ void updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaFishesParams* sho
     size_t numBytes = 0;
 
     status = cudaGraphicsMapResources(1, &cudaVBO, 0);
-    if (status != cudaSuccess) {
-        std::cerr << cudaGetErrorString(status) << std::endl;
-        return;
-    }
+    if (!checkCudaError(status, ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice, fishesIndexes)) {
+        return status;
+        }
     status = cudaGraphicsResourceGetMappedPointer((void**)&vbo, &numBytes, cudaVBO);
-    if (status != cudaSuccess) {
-        std::cerr << cudaGetErrorString(status) << std::endl;
-        return;
-    }
+    if (!checkCudaError(status, ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice, fishesIndexes)) {
+        return status;
+        }
 
     cudaMemcpyToSymbol(CX, &cx, sizeof(float));
     cudaMemcpyToSymbol(CY, &cy, sizeof(float));
@@ -535,21 +550,21 @@ void updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaFishesParams* sho
 
     splitFishesOnGridKernel<<<gridDim, blockDim>>>(ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice, COUNT, gridIndexesOnDevice);
     status = cudaDeviceSynchronize();
-    if (status != cudaSuccess) {
-        std::cerr << "splitFishesOnGridKernel: " << status << std::endl;
-        exit(1);
+    if (!checkCudaError(status, ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice, fishesIndexes)) {
+        return status;
     }
 
     auto end = std::chrono::high_resolution_clock::now();
-    auto splitDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto splitDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     start = std::chrono::high_resolution_clock::now();
 
     initializeFishesIndexesKernel<<<gridDim, blockDim>>>(fishesIndexes, COUNT);
     status = cudaDeviceSynchronize();
-    if (status != cudaSuccess) {
-        std::cerr << "initializeFishesIndexesKernel: " << status << std::endl;
-        exit(1);
+    if (!checkCudaError(status, ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice, fishesIndexes)) {
+        return status;
     }
 
     thrust::device_ptr<int> dFishesIndexes(fishesIndexes);
@@ -558,64 +573,67 @@ void updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaFishesParams* sho
     initializeSortedParamsKernel<<<gridDim, blockDim>>>(ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice,
         nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, fishesIndexes, COUNT);
     status = cudaDeviceSynchronize();
-    if (status != cudaSuccess) {
-        std::cerr << "initializeSortedParamsKernel: " << status << std::endl;
-        exit(1);
+    if (!checkCudaError(status, ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice, fishesIndexes)) {
+        return status;
     }
 
     sortParamsKernel<<<gridDim, blockDim>>>(ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice,
         nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, COUNT);
     status = cudaDeviceSynchronize();
-    if (status != cudaSuccess) {
-        std::cerr << "sortParamsKernel: " << status << std::endl;
-        exit(1);
+    if (!checkCudaError(status, ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice, fishesIndexes)) {
+        return status;
     }
 
     end = std::chrono::high_resolution_clock::now();
-    auto thrustSortDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto thrustSortDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     start = std::chrono::high_resolution_clock::now();
     dim3 gridDimForCells((CELLSNUM + blockDim.x - 1) / blockDim.x);
     resetCellsStartIndexesKernel<<<gridDimForCells, blockDim>>>(cellsStartIndexesOnDevice, CELLSNUM);
     status = cudaDeviceSynchronize();
-    if (status != cudaSuccess) {
-        std::cerr << "resetCellsStartIndexesKernel: " << status << std::endl;
-        exit(1);
+    if (!checkCudaError(status, ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice, fishesIndexes)) {
+        return status;
     }
     findCellsStartIndexesKernel<<<gridDim, blockDim>>>(cellsStartIndexesOnDevice, gridIndexesOnDevice, COUNT);
     end = std::chrono::high_resolution_clock::now();
-    auto cellsStartDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto cellsStartDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     start = std::chrono::high_resolution_clock::now();
     computeForceKernel<<<gridDim, blockDim>>>(ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice, COUNT, gridIndexesOnDevice, cellsStartIndexesOnDevice);
     status = cudaDeviceSynchronize();
-    if (status != cudaSuccess) {
-        std::cerr << "computeForceKernel: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice, fishesIndexes)) {
+        return status;
+        }
     end = std::chrono::high_resolution_clock::now();
-    auto computeForcesDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto computeForcesDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     start = std::chrono::high_resolution_clock::now();
     updateFishKernel<<<gridDim, blockDim>>>(ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice, COUNT);
     status = cudaDeviceSynchronize();
-    if (status != cudaSuccess) {
-        std::cerr << "updateFishKernel: " << status << std::endl;
-        exit(1);
-    }
+    if (!checkCudaError(status, ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
+        nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice, nifRedOnDevice, gridIndexesOnDevice, cellsStartIndexesOnDevice, fishesIndexes)) {
+        return status;
+        }
     end = std::chrono::high_resolution_clock::now();
-    auto updateDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto updateDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     start = std::chrono::high_resolution_clock::now();
     copyToVBOKernel<<<gridDim, blockDim>>>(vbo, ifRedOnDevice, xOnDevice, yOnDevice, vxOnDevice, vyOnDevice, COUNT);
     end = std::chrono::high_resolution_clock::now();
-    auto copyingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto copyingDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     cudaGraphicsUnmapResources(1, &cudaVBO, 0);
 
-    // std::cout << "Times: " << splitDuration.count() << " " << thrustSortDuration.count() << " " <<
-    //     cellsStartDuration.count() << " " << computeForcesDuration.count() << " " << updateDuration.count() << " " <<
-    //         copyingDuration.count() << std::endl;
+    std::cout << "Operation times: Splitting to cells grids: " << splitDuration.count() / 1e9 <<
+        "s, Thrust sort: " << thrustSortDuration.count() / 1e9 << "s, Finding start indexes: " <<
+        cellsStartDuration.count() / 1e9 << "s, Computing forces: " << computeForcesDuration.count() / 1e9 <<
+        "s, Updating locations and velocities: " << updateDuration.count() / 1e9 << "s, Copying data to VBO: " <<
+            copyingDuration.count() / 1e9 << "s" << std::endl;
+    return status;
 }
 
 void freeMemoryOnGPU(int** ifRedOnDevice, float** xOnDevice, float** yOnDevice, float** vxOnDevice, float** vyOnDevice,

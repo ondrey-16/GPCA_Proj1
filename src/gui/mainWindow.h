@@ -6,6 +6,7 @@
 #define SHOAL_FISH_ANIMATION_MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QPushButton>
 #include <QLabel>
 #include <QSlider>
 #include "FishCanvas.h"
@@ -36,6 +37,7 @@ private:
     QSlider* alignmentGreenSlider;
     QSlider* separationGreenSlider;
     QSlider* cohesionGreenSlider;
+    QPushButton* animationButton;
     int ifGPU;
 };
 

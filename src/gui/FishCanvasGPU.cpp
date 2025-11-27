@@ -6,21 +6,37 @@
 #include <QOpenGLFunctions>
 
 FishCanvasGPU::FishCanvasGPU(QWidget *parent) : FishCanvas(parent) {
+    auto start = std::chrono::high_resolution_clock::now();
     initializeFishesParams(&shoalGPU);
-    initializeMemoryOnGPU(&shoalGPU, &ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
+    cudaError_t status = initializeMemoryOnGPU(&shoalGPU, &ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
         &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+    if (status != cudaSuccess) {
+        std::cerr << "Initializing data error " << cudaGetErrorString(status);
+        freeMemoryOnGPU(&ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
+        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+        delete timer;
+        exit(1);
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    int initDataDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    std::cout << "Initializing data on GPU time: " << initDataDuration / 1e9 << "s" << std::endl;
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &FishCanvasGPU::onUpdate);
 }
 
 FishCanvasGPU::~FishCanvasGPU() {
+    auto start = std::chrono::high_resolution_clock::now();
     freeMemoryOnGPU(&ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
         &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+    delete timer;
+    auto end = std::chrono::high_resolution_clock::now();
+    int freeDataDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    std::cout << "Memory release time: " << freeDataDuration / 1e9 << "s" << std::endl;
 }
 
 void FishCanvasGPU::initializeGL() {
+    auto start = std::chrono::high_resolution_clock::now();
     initializeOpenGLFunctions();
-
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     const char* vertexShader = R"glsl(
@@ -126,7 +142,11 @@ void main() {
     cudaError_t status = cudaGraphicsGLRegisterBuffer(&shoalGPUResource, vbo, cudaGraphicsMapFlagsWriteDiscard);
 
     if (status != cudaSuccess) {
-        qDebug() << "BŁĄD KRYTYCZNY: Nieudana rejestracja GL/CUDA! " << cudaGetErrorString(status);
+        std::cerr << "Registration GL/CUDA error " << cudaGetErrorString(status);
+        freeMemoryOnGPU(&ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
+        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+        delete timer;
+        exit(1);
     }
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -134,10 +154,22 @@ void main() {
         timer = new QTimer(this);
         connect(timer, &QTimer::timeout, this, &FishCanvasGPU::onUpdate);
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    int intializingGLDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    std::cout << "GL initialization time: " << intializingGLDuration / 1e9 << "s" << std::endl;
     timer->start(33);
 }
 
 void FishCanvasGPU::paintGL() {
+    if (!firstFrame) {
+        int duration = frameTimer.nsecsElapsed();
+        std::cout << "Frame rendering speed: " << 1e9 / duration << " FPS" << std::endl;
+    } else {
+        firstFrame = false;
+    }
+
+    frameTimer.restart();
+
     auto start = std::chrono::high_resolution_clock::now();
     glClear(GL_COLOR_BUFFER_BIT);
     shaderProgram->bind();
@@ -150,13 +182,20 @@ void FishCanvasGPU::paintGL() {
     float cx = localPos.x();
     float cy = localPos.y();
 
-    updateShoalSceneOnGPU(shoalGPUResource, &shoalGPU,
+    cudaError_t status = updateShoalSceneOnGPU(shoalGPUResource, &shoalGPU,
                           ifRedOnDevice, xOnDevice, yOnDevice,
                           vxOnDevice, vyOnDevice, axOnDevice, ayOnDevice,
                           nxOnDevice, nyOnDevice, nvxOnDevice, nvyOnDevice,
                           nifRedOnDevice, gridIndexesOnDevice,
                           cellsStartIndexesOnDevice, fishesIndexes,
                           cx, cy, swR, awR, cwR, swG, awG, cwG);
+    if (status != cudaSuccess) {
+        std::cerr << "Updating data error " << cudaGetErrorString(status);
+        freeMemoryOnGPU(&ifRedOnDevice, &xOnDevice, &yOnDevice, &vxOnDevice, &vyOnDevice, &axOnDevice, &ayOnDevice,
+        &nxOnDevice, &nyOnDevice, &nvxOnDevice, &nvyOnDevice, &nifRedOnDevice, &gridIndexesOnDevice, &cellsStartIndexesOnDevice, &fishesIndexes);
+        delete timer;
+        exit(1);
+    }
 
     glBindVertexArray(vao);
     glPointSize(fishesSize);
@@ -165,8 +204,8 @@ void FishCanvasGPU::paintGL() {
     shaderProgram->release();
 
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-    std::cout << "Update speed: " << 1e9 / duration.count() << " FPS" << std::endl;
+    auto paintDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    std::cout << "Update + painting speed: " << paintDuration.count() / 1e9 << "s" << std::endl;
 }
 
 void FishCanvasGPU::onUpdate() {

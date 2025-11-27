@@ -5,6 +5,7 @@
 #include "FishCanvasCPU.h"
 
 FishCanvasCPU::FishCanvasCPU(QWidget *parent) : FishCanvas(parent) {
+    auto start = std::chrono::high_resolution_clock::now();
     fishesOnGrid.resize(41);
     for (int i = 0; i < 41; i++) {
         fishesOnGrid[i].resize(25);
@@ -18,19 +19,35 @@ FishCanvasCPU::FishCanvasCPU(QWidget *parent) : FishCanvas(parent) {
         Fish* f = new Fish(x, y, vx, vy, isRed);
         shoal.push_back(f);
     }
-
+    auto end = std::chrono::high_resolution_clock::now();
+    int initDataDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    std::cout << "Initializing data on CPU time: " << initDataDuration / 1e9 << "s" << std::endl;
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &FishCanvasCPU::onUpdate);
     timer->start(33);
 }
 
 FishCanvasCPU::~FishCanvasCPU() {
+    auto start = std::chrono::high_resolution_clock::now();
     for (auto& f : shoal) {
         delete f;
     }
+    delete timer;
+    auto end = std::chrono::high_resolution_clock::now();
+    int freeDataDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    std::cout << "Memory release time: " << freeDataDuration / 1e9 << "s" << std::endl;
 }
 
 void FishCanvasCPU::paintEvent(QPaintEvent *paint_event) {
+    if (!firstFrame) {
+        int duration = frameTimer.nsecsElapsed();
+        std::cout << "Frame rendering speed: " << 1e9 / duration << " FPS" << std::endl;
+    } else {
+        firstFrame = false;
+    }
+
+    frameTimer.restart();
+
     QPainter painter(this);
     painter.fillRect(rect(), Qt::black);
     painter.setPen(Qt::black);
@@ -61,7 +78,6 @@ void FishCanvasCPU::onUpdate() {
     Fish::separationWeightRed = swR;
     Fish::separationWeightGreen = swG;
 
-    auto start = std::chrono::high_resolution_clock::now();
     QPoint globalPos = QCursor::pos();
     QPoint localPos = this->mapFromGlobal(globalPos);
 
@@ -99,8 +115,4 @@ void FishCanvasCPU::onUpdate() {
     }
 
     update();
-
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-    std::cout << "Update speed: " << 1e9 / duration.count() << " FPS" << std::endl;
 }

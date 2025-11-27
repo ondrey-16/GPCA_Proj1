@@ -36,3 +36,15 @@ void FishCanvas::setSeparationWeightGreen(int value) {
 void FishCanvas::setCohesionWeightGreen(int value) {
     cwG = static_cast<float>(value) / 10.0f;
 }
+
+void FishCanvas::toggleAnimation() {
+    if (!timer) {
+        return;
+    }
+    if (timer->isActive()) {
+        timer->stop();
+    }
+    else {
+        timer->start(33);
+    }
+}

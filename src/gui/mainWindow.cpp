@@ -60,6 +60,9 @@ mainWindow::mainWindow(int ifGPU, QWidget *parent) : QMainWindow(parent), ui(new
     controlsLayout->addWidget(cohesionGreenLabel);
     controlsLayout->addWidget(cohesionGreenSlider);
 
+    animationButton = new QPushButton("Start/Stop Animation", this);
+    controlsLayout->addWidget(animationButton);
+
     layout->addWidget(controlsPanel);
     if (ifGPU) {
         canvas = new FishCanvasGPU(this);
@@ -70,17 +73,19 @@ mainWindow::mainWindow(int ifGPU, QWidget *parent) : QMainWindow(parent), ui(new
     layout->addWidget(canvas, 1);
 
     connect(alignmentRedSlider, &QSlider::valueChanged,
-        canvas, &FishCanvas::setAlignmentWeightRed);
+            canvas, &FishCanvas::setAlignmentWeightRed);
     connect(separationRedSlider, &QSlider::valueChanged,
             canvas, &FishCanvas::setSeparationWeightRed);
     connect(cohesionRedSlider, &QSlider::valueChanged,
             canvas, &FishCanvas::setCohesionWeightRed);
     connect(alignmentGreenSlider, &QSlider::valueChanged,
-        canvas, &FishCanvas::setAlignmentWeightGreen);
+            canvas, &FishCanvas::setAlignmentWeightGreen);
     connect(separationGreenSlider, &QSlider::valueChanged,
             canvas, &FishCanvas::setSeparationWeightGreen);
     connect(cohesionGreenSlider, &QSlider::valueChanged,
             canvas, &FishCanvas::setCohesionWeightGreen);
+    connect(animationButton, &QPushButton::clicked,
+            canvas, &FishCanvas::toggleAnimation);
 
     alignmentRedSlider->setValue(10);
     separationRedSlider->setValue(16);

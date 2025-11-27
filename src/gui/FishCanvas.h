@@ -10,6 +10,7 @@
 #include <QPainter>
 #include <QTimer>
 #include <QOpenGLWidget>
+#include <QElapsedTimer>
 
 #define COUNT 10000
 
@@ -24,7 +25,10 @@ public:
     void setAlignmentWeightGreen(int value);
     void setSeparationWeightGreen(int value);
     void setCohesionWeightGreen(int value);
+    void toggleAnimation();
 protected:
+    QElapsedTimer frameTimer;
+    bool firstFrame = true;
     float fishesSize = 3.0;
     QTimer* timer;
     QPoint* pos;

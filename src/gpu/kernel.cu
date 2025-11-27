@@ -61,40 +61,7 @@ __device__ cudaVector div(const float x1, const float y1, const float x2, const 
     return cudaVector(x1 / x2, y1 / y2);
 }
 
-__device__ cudaVector separate(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int start, const int end, const int fishIdx, int* count) {
-    float neighborDist = 25.0f;
-    cudaVector steer(0, 0);
-
-    for (int i = start; i < end; i++) {
-        float dist = distance(x[fishIdx], y[fishIdx], x[i], y[i]);
-        if (fishIdx != i && dist > 0 && dist < neighborDist && ifRed[fishIdx] == ifRed[i]) {
-            cudaVector diff = sub(x[fishIdx], y[fishIdx], x[i], y[i]);
-            diff.x /= dist;
-            diff.y /= dist;
-            steer = add(steer.x, steer.y, diff.x, diff.y);
-            (*count)++;
-        }
-    }
-
-    return steer;
-}
-
-__device__ cudaVector align(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int start, const int end, const int fishIdx, int* count) {
-    float neighborDist = 50.0f;
-    cudaVector steer(0, 0);
-
-    for (int i = start; i < end; i++) {
-        float dist = distance(x[fishIdx], y[fishIdx], x[i], y[i]);
-        if (fishIdx != i && dist > 0 && dist < neighborDist && ifRed[fishIdx] == ifRed[i]) {
-            steer = add(steer.x, steer.y, vx[i], vy[i]);
-            (*count)++;
-        }
-    }
-
-    return steer;
-}
-
-__device__ void normalizeSteerVector(cudaVector* steer, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx, int count) {
+__device__ void normalizeSteerVector(cudaVector* steer, float* vx, float* vy, int fishIdx, int count) {
     if (count > 0) {
         steer->x /= static_cast<float>(count);
         steer->y /= static_cast<float>(count);
@@ -108,22 +75,7 @@ __device__ void normalizeSteerVector(cudaVector* steer, float* x, float* y, floa
     }
 }
 
-__device__ cudaVector cohere(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int start, const int end, const int fishIdx, int* count) {
-    float neighborDist = 50.0f;
-    cudaVector steer(0, 0);
-
-    for (int i = start; i < end; i++) {
-        float dist = distance(x[fishIdx], y[fishIdx], x[i], y[i]);
-        if (fishIdx != i && dist > 0 && dist < neighborDist && ifRed[fishIdx] == ifRed[i]) {
-            steer = add(steer.x, steer.y, x[i], y[i]);
-            (*count)++;
-        }
-    }
-
-    return steer;
-}
-
-__device__ void normalizeCohesionSteerVector(cudaVector* steer, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int fishIdx, int count) {
+__device__ void normalizeCohesionSteerVector(cudaVector* steer, float* x, float* y, float* vx, float* vy, int fishIdx, int count) {
     if (count > 0) {
         steer->x /= static_cast<float>(count);
         steer->y /= static_cast<float>(count);
@@ -138,8 +90,11 @@ __device__ void normalizeCohesionSteerVector(cudaVector* steer, float* x, float*
     }
 }
 
-__device__ cudaVector avoidObstacle(float* x, float* y, float* vx, float* vy, int N, const int fishIdx) {
+__device__ cudaVector avoidObstacle(float* x, float* y, float* vx, float* vy, const int fishIdx) {
     float vMag = magnitude(vx[fishIdx], vy[fishIdx]);
+    if (vMag < 1e-6) {
+        return cudaVector(0, 0);
+    }
     cudaVector rayDirection(vx[fishIdx] / vMag, vy[fishIdx] / vMag);
     cudaVector rayStart(x[fishIdx], y[fishIdx]);
     if (intersection(rayStart, rayDirection) == 1) {
@@ -173,70 +128,56 @@ __device__ int intersection(cudaVector rayStart, cudaVector rayDirection) {
     return 0;
 }
 
-__device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int fishIdx, const int fx, const int fy, const int* cellsStartIndexes) {
+__device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay,
+    const int fishIdx, const int fx, const int fy, const int* cellsStartIndexes, const int* cellsEndIndexes) {
     int gridIndex;
 
     cudaVector sep(0, 0);
-    int count = 0;
+    cudaVector ali(0, 0);
+    cudaVector coh(0, 0);
+    int countSep = 0, countAli = 0, countCoh = 0;
+    float aliCohNeighborDist = 50.0f;
+    float sepNeighborDist = 25.0f;
     for (int j = fx > 0 ? fx - 1 : 0; j < 41 && j <= fx + 1; j++) {
         for (int k = fy > 0 ? fy - 1 : 0; k < 25 && k <= fy + 1; k++) {
             gridIndex = k * 41 + j;
-            if (cellsStartIndexes[gridIndex] == -1) {
+            int start = cellsStartIndexes[gridIndex];
+            int end = cellsEndIndexes[gridIndex];
+            if (start == -1 || end == -1) {
                 continue;
             }
             cudaVector partSep(0, 0);
-            int endIdx = gridIndex + 1;
-            while (endIdx < CELLSNUM && cellsStartIndexes[endIdx] == -1) {
-                endIdx++;
-            }
-            partSep = separate(ifRed, x, y, vx, vy, ax, ay, N, cellsStartIndexes[gridIndex], (gridIndex < CELLSNUM - 1) ? cellsStartIndexes[endIdx] : N,
-                fishIdx, &count);
-            sep = add(sep.x, sep.y, partSep.x, partSep.y);
-        }
-    }
-    normalizeSteerVector(&sep, x, y, vx, vy, ax, ay, N, fishIdx, count);
-
-    cudaVector ali(0, 0);
-    count = 0;
-    for (int j = fx > 0 ? fx - 1 : 0; j < 41 && j <= fx + 1; j++) {
-        for (int k = fy > 0 ? fy - 1 : 0; k < 25 && k <= fy + 1; k++) {
-            gridIndex = k * 41 + j;
-            if (cellsStartIndexes[gridIndex] == -1) {
-                continue;
-            }
             cudaVector partAli(0, 0);
-            int endIdx = gridIndex + 1;
-            while (endIdx < CELLSNUM && cellsStartIndexes[endIdx] == -1) {
-                endIdx++;
-            }
-            partAli = align(ifRed, x, y, vx, vy, ax, ay, N, cellsStartIndexes[gridIndex], (gridIndex < CELLSNUM - 1) ? cellsStartIndexes[endIdx] : N,
-                fishIdx, &count);
-            ali = add(ali.x, ali.y, partAli.x, partAli.y);
-        }
-    }
-    normalizeSteerVector(&ali, x, y, vx, vy, ax, ay, N, fishIdx, count);
-
-    cudaVector coh(0, 0);
-    count = 0;
-    for (int j = fx > 0 ? fx - 1 : 0; j < 41 && j <= fx + 1; j++) {
-        for (int k = fy > 0 ? fy - 1 : 0; k < 25 && k <= fy + 1; k++) {
-            gridIndex = k * 41 + j;
-            if (cellsStartIndexes[gridIndex] == -1) {
-                continue;
-            }
             cudaVector partCoh(0, 0);
-            int endIdx = gridIndex + 1;
-            while (endIdx < CELLSNUM && cellsStartIndexes[endIdx] == -1) {
-                endIdx++;
+            for (int i = start; i < end; i++) {
+                if (i == fishIdx) {
+                    continue;
+                }
+                float dist = distance(x[fishIdx], y[fishIdx], x[i], y[i]);
+                if (dist > 0 && dist < aliCohNeighborDist && ifRed[fishIdx] == ifRed[i]) {
+                    partAli = add(partAli.x, partAli.y, vx[i], vy[i]);
+                    partCoh = add(partCoh.x, partCoh.y, x[i], y[i]);
+                    countAli++;
+                    countCoh++;
+                    if (dist < sepNeighborDist && ifRed[fishIdx] == ifRed[i]) {
+                        cudaVector diff = sub(x[fishIdx], y[fishIdx], x[i], y[i]);
+                        diff.x /= dist;
+                        diff.y /= dist;
+                        partSep = add(partSep.x, partSep.y, diff.x, diff.y);
+                        countSep++;
+                    }
+                }
             }
-            partCoh = cohere(ifRed, x, y, vx, vy, ax, ay, N, cellsStartIndexes[gridIndex], (gridIndex < CELLSNUM - 1) ? cellsStartIndexes[endIdx] : N,
-                fishIdx, &count);
+            sep = add(sep.x, sep.y, partSep.x, partSep.y);
+            ali = add(ali.x, ali.y, partAli.x, partAli.y);
             coh = add(coh.x, coh.y, partCoh.x, partCoh.y);
         }
     }
-    normalizeCohesionSteerVector(&coh, x, y, vx, vy, ax, ay, N, fishIdx, count);
+    normalizeSteerVector(&sep, vx, vy, fishIdx, countSep);
+    normalizeSteerVector(&ali, vx, vy, fishIdx, countAli);
+    normalizeCohesionSteerVector(&coh, x, y, vx, vy, fishIdx, countCoh);
 
-    cudaVector avoid = avoidObstacle(x, y, vx, vy, N, fishIdx);
+    cudaVector avoid = avoidObstacle(x, y, vx, vy, fishIdx);
 
     float aw = (ifRed[fishIdx] == 1) ? alignmentWeightRed : alignmentWeightGreen;
     float sw = (ifRed[fishIdx] == 1) ? separationWeightRed : separationWeightGreen;
@@ -246,7 +187,7 @@ __device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, floa
     ay[fishIdx] = ali.y * aw + coh.y * cw + sep.y * sw + 2 * avoid.y;
 }
 
-__device__ void update(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int fishIdx) {
+__device__ void update(float* x, float* y, float* vx, float* vy, float* ax, float* ay, const int fishIdx) {
     const cudaVector velocity = add(vx[fishIdx], vy[fishIdx], ax[fishIdx], ay[fishIdx]);
     vx[fishIdx] = velocity.x;
     vy[fishIdx] = velocity.y;
@@ -254,12 +195,12 @@ __device__ void update(int* ifRed, float* x, float* y, float* vx, float* vy, flo
     const cudaVector location = add(vx[fishIdx], vy[fishIdx], x[fishIdx], y[fishIdx]);
     x[fishIdx] = location.x;
     y[fishIdx] = location.y;
-    ax[fishIdx] *= 0.0f;
-    ay[fishIdx] *= 0.0f;
-    borders(ifRed, x, y, vx, vy, ax, ay, N, fishIdx);
+    ax[fishIdx] = 0.0f;
+    ay[fishIdx] = 0.0f;
+    borders(x, y, fishIdx);
 }
 
-__device__ void borders(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int fishIdx) {
+__device__ void borders(float* x, float* y, const int fishIdx) {
     if (x[fishIdx] > 2000) {
         x[fishIdx] = 0;
     }
@@ -286,7 +227,7 @@ __global__ void initializeDataKernel(int *ifRed, float *x, float *y, float *vx, 
     ifRed[i] = i % 2 == 0;
 }
 
-__global__ void splitFishesOnGridKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int* gridIndexes) {
+__global__ void splitFishesOnGridKernel(float* x, float* y, int N, int* gridIndexes) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
     int idxX = (int)(x[i] / 50.f);
@@ -298,10 +239,11 @@ __global__ void splitFishesOnGridKernel(int* ifRed, float* x, float* y, float* v
     gridIndexes[i] = 41 * idxY + idxX;
 }
 
-__global__ void resetCellsStartIndexesKernel(int* cellsStartIndexes, int cellsN) {
+__global__ void resetCellsStartEndIndexesKernel(int* cellsStartIndexes, int* cellsEndIndexes, int cellsN) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= cellsN) return;
-    cellsStartIndexes[i] = -1;
+    cellsStartIndexes[i] = INT_MAX;
+    cellsEndIndexes[i] = -1;
 }
 
 __global__ void initializeFishesIndexesKernel(int* fishesIndexes, int N) {
@@ -330,34 +272,31 @@ __global__ void sortParamsKernel(int* ifRed, float* x, float* y, float* vx, floa
     ifRed[i] = nifRed[i];
 }
 
-__global__ void findCellsStartIndexesKernel(int* cellsStartIndexes, int* gridIndexes, int N) {
+__global__ void findCellsStartEndIndexesKernel(int* cellsStartIndexes, int* cellsEndIndexes, int* gridIndexes, int N) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
 
-    if (i == 0) {
-        cellsStartIndexes[gridIndexes[i]] = 0;
-    }
-    else {
-        if (gridIndexes[i - 1] != gridIndexes[i]) {
-            cellsStartIndexes[gridIndexes[i]] = i;
-        }
-    }
+    int gridIndex = gridIndexes[i];
+    atomicMin(&cellsStartIndexes[gridIndex], i);
+    atomicMax(&cellsEndIndexes[gridIndex], i + 1);
 }
 
-__global__ void computeForceKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, const int* gridIndexes, const int* cellsStartIndexes) {
+__global__ void computeForceKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N,
+    const int* gridIndexes, const int* cellsStartIndexes, const int* cellsEndIndexes) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
+
     int gridIndex = gridIndexes[i];
     const int fy = gridIndex / 41;
     const int fx = gridIndex % 41;
 
-    flock(ifRed, x, y, vx, vy, ax, ay, N, i, fx, fy, cellsStartIndexes);
+    flock(ifRed, x, y, vx, vy, ax, ay, i, fx, fy, cellsStartIndexes, cellsEndIndexes);
 }
 
-__global__ void updateFishKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N) {
+__global__ void updateFishKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
-    update(ifRed, x, y, vx, vy, ax, ay, N, i);
+    update(x, y, vx, vy, ax, ay, i);
 }
 
 __global__ void copyToVBOKernel(float *vbo, int *ifRed, float *x, float *y, float *vx, float *vy, int N) {
@@ -390,6 +329,10 @@ cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs) {
     if (!checkCudaError(status, dPtrs)) {
         return status;
         }
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->cellsEndIndexes), sizeof(int) * 41 * 25);
+    if (!checkCudaError(status, dPtrs)) {
+        return status;
+    }
     status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->fishesIndexes), sizeof(int) * COUNT);
     if (!checkCudaError(status, dPtrs)) {
         return status;
@@ -489,14 +432,13 @@ cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs*
     cudaMemcpyToSymbol(alignmentWeightGreen, &awG, sizeof(float));
     cudaMemcpyToSymbol(separationWeightGreen, &swG, sizeof(float));
     cudaMemcpyToSymbol(cohesionWeightGreen, &cwG, sizeof(float));
-    cudaMemcpyToSymbol(cohesionWeightGreen, &cwG, sizeof(float));
 
     dim3 blockDim(256);
     dim3 gridDim((COUNT + blockDim.x - 1) / blockDim.x);
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    splitFishesOnGridKernel<<<gridDim, blockDim>>>(dPtrs->ifRed, dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, dPtrs->ax, dPtrs->ay, COUNT, dPtrs->gridIndexes);
+    splitFishesOnGridKernel<<<gridDim, blockDim>>>(dPtrs->x, dPtrs->y, COUNT, dPtrs->gridIndexes);
     status = cudaDeviceSynchronize();
     if (!checkCudaError(status, dPtrs)) {
         return status;
@@ -535,17 +477,18 @@ cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs*
 
     start = std::chrono::high_resolution_clock::now();
     dim3 gridDimForCells((CELLSNUM + blockDim.x - 1) / blockDim.x);
-    resetCellsStartIndexesKernel<<<gridDimForCells, blockDim>>>(dPtrs->cellsStartIndexes, CELLSNUM);
+    resetCellsStartEndIndexesKernel<<<gridDimForCells, blockDim>>>(dPtrs->cellsStartIndexes, dPtrs->cellsEndIndexes,CELLSNUM);
     status = cudaDeviceSynchronize();
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    findCellsStartIndexesKernel<<<gridDim, blockDim>>>(dPtrs->cellsStartIndexes, dPtrs->gridIndexes, COUNT);
+    findCellsStartEndIndexesKernel<<<gridDim, blockDim>>>(dPtrs->cellsStartIndexes, dPtrs->cellsEndIndexes, dPtrs->gridIndexes, COUNT);
     end = std::chrono::high_resolution_clock::now();
     auto cellsStartDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     start = std::chrono::high_resolution_clock::now();
-    computeForceKernel<<<gridDim, blockDim>>>(dPtrs->ifRed, dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, dPtrs->ax, dPtrs->ay, COUNT, dPtrs->gridIndexes, dPtrs->cellsStartIndexes);
+    computeForceKernel<<<gridDim, blockDim>>>(dPtrs->ifRed, dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, dPtrs->ax,
+        dPtrs->ay, COUNT, dPtrs->gridIndexes, dPtrs->cellsStartIndexes, dPtrs->cellsEndIndexes);
     status = cudaDeviceSynchronize();
     if (!checkCudaError(status, dPtrs)) {
         return status;
@@ -554,7 +497,7 @@ cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs*
     auto computeForcesDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     start = std::chrono::high_resolution_clock::now();
-    updateFishKernel<<<gridDim, blockDim>>>(dPtrs->ifRed, dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, dPtrs->ax, dPtrs->ay, COUNT);
+    updateFishKernel<<<gridDim, blockDim>>>(dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, dPtrs->ax, dPtrs->ay, COUNT);
     status = cudaDeviceSynchronize();
     if (!checkCudaError(status, dPtrs)) {
         return status;
@@ -594,4 +537,3 @@ void freeMemoryOnGPU(cudaArrayPtrs* dPtrs) {
     cudaFree(dPtrs->gridIndexes);
     cudaFree(dPtrs->fishesIndexes);
 }
-

@@ -12,6 +12,9 @@
 #include <QOpenGLContext>
 #include <cuda_gl_interop.h>
 
+/*
+ * Klasa reprezentująca canvas, dla którego wywoływane są algorytmy w wersji GPU
+ */
 class FishCanvasGPU : public FishCanvas, protected QOpenGLFunctions_3_3_Core{
     Q_OBJECT
 public:

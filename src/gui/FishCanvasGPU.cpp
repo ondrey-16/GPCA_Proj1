@@ -5,6 +5,8 @@
 #include "FishCanvasGPU.h"
 #include <QOpenGLFunctions>
 
+// Tworzy obiekt Timer'a, a także inicjalizuje pamięć wykorzystywaną do obliczeń na GPU. Liczy czas działania
+// inicjalizacji
 FishCanvasGPU::FishCanvasGPU(QWidget *parent) : FishCanvas(parent) {
     auto start = std::chrono::high_resolution_clock::now();
     cudaError_t status = initializeMemoryOnGPU(&shoalPtrs, &initShoal);
@@ -20,6 +22,7 @@ FishCanvasGPU::FishCanvasGPU(QWidget *parent) : FishCanvas(parent) {
     connect(timer, &QTimer::timeout, this, &FishCanvasGPU::onUpdate);
 }
 
+// Usuwa zaalokowaną pamięć na GPU oraz obiekt Timer'a. Liczy czas zwalniania pamięci
 FishCanvasGPU::~FishCanvasGPU() {
     auto start = std::chrono::high_resolution_clock::now();
     freeMemoryOnGPU(&shoalPtrs);
@@ -29,6 +32,8 @@ FishCanvasGPU::~FishCanvasGPU() {
     std::cout << "Memory release time: " << freeDataDuration / 1e9 << "s" << std::endl;
 }
 
+// Inicjalizuje obiekty niezbędne do renderowania obiektów ryb na ekranie przy użyciu karty graficznej. Liczy
+// czas działania inicjalizacji
 void FishCanvasGPU::initializeGL() {
     auto start = std::chrono::high_resolution_clock::now();
     initializeOpenGLFunctions();
@@ -154,6 +159,8 @@ void main() {
     timer->start(33);
 }
 
+// Modyfikuje położenia i prędkości ryb w danej chwili. Następnie wywołuje shadery wykorzystywane do renderowania ich
+// symulowanych położeń na ekranie. Liczy czas trwania modyfikacji i renderowania
 void FishCanvasGPU::paintGL() {
     if (!firstFrame) {
         int duration = frameTimer.nsecsElapsed();

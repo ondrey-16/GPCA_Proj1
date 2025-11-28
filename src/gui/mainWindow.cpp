@@ -8,42 +8,44 @@
 #include "FishCanvasCPU.h"
 #include "ui_mainWindow.h"
 
-
+// Tworzy układ okna składający się z sześciu sliderów do manipulowania parametrami zachowań ryb, przycisk do
+// zatrzymywania/wznawiania animacji oraz canvas, wewnątrz którego renderowany jest układ ryb i to on wywołuje algorytmy
+// do modyfikowania położeń ryb na ekranie. Na podstawie parametru ifGPU wybiera, jaki canvas jest tworzony.
 mainWindow::mainWindow(int ifGPU, QWidget *parent) : QMainWindow(parent), ui(new Ui::mainWindow), ifGPU(ifGPU) {
     ui->setupUi(this);
     this->setWindowTitle("Shoal Fish Animation");
     this->resize(2000, 1200);
 
-    QWidget* centralWidget = new QWidget(this);
+    centralWidget = new QWidget(this);
     this->setCentralWidget(centralWidget);
 
-    QVBoxLayout* layout = new QVBoxLayout(centralWidget);
+    layout = new QVBoxLayout(centralWidget);
 
-    QWidget* controlsPanel = new QWidget(this);
-    QHBoxLayout* controlsLayout = new QHBoxLayout(controlsPanel);
+    controlsPanel = new QWidget(this);
+    controlsLayout = new QHBoxLayout(controlsPanel);
 
-    QLabel* alignRedLabel = new QLabel("Alignment Red:", this);
-    alignmentRedSlider = new QSlider(Qt::Horizontal, this->centralWidget());
+    alignRedLabel = new QLabel("Alignment Red:", this);
+    alignmentRedSlider = new QSlider(Qt::Horizontal, this->centralWidget);
     alignmentRedSlider->setRange(0, 20);
 
-    QLabel* separationRedLabel = new QLabel("Separation Red:", this);
-    separationRedSlider = new QSlider(Qt::Horizontal, this->centralWidget());
+    separationRedLabel = new QLabel("Separation Red:", this);
+    separationRedSlider = new QSlider(Qt::Horizontal, this->centralWidget);
     separationRedSlider->setRange(0, 20);
 
-    QLabel* cohesionRedLabel = new QLabel("Cohesion Red:", this);
-    cohesionRedSlider = new QSlider(Qt::Horizontal, this->centralWidget());
+    cohesionRedLabel = new QLabel("Cohesion Red:", this);
+    cohesionRedSlider = new QSlider(Qt::Horizontal, this->centralWidget);
     cohesionRedSlider->setRange(0, 20);
 
-    QLabel* alignGreenLabel = new QLabel("Alignment Green:", this);
-    alignmentGreenSlider = new QSlider(Qt::Horizontal, this->centralWidget());
+    alignGreenLabel = new QLabel("Alignment Green:", this);
+    alignmentGreenSlider = new QSlider(Qt::Horizontal, this->centralWidget);
     alignmentGreenSlider->setRange(0, 20);
 
-    QLabel* separationGreenLabel = new QLabel("Separation Green:", this);
-    separationGreenSlider = new QSlider(Qt::Horizontal, this->centralWidget());
+    separationGreenLabel = new QLabel("Separation Green:", this);
+    separationGreenSlider = new QSlider(Qt::Horizontal, this->centralWidget);
     separationGreenSlider->setRange(0, 20);
 
-    QLabel* cohesionGreenLabel = new QLabel("Cohesion Green:", this);
-    cohesionGreenSlider = new QSlider(Qt::Horizontal, this->centralWidget());
+    cohesionGreenLabel = new QLabel("Cohesion Green:", this);
+    cohesionGreenSlider = new QSlider(Qt::Horizontal, this->centralWidget);
     cohesionGreenSlider->setRange(0, 20);
 
     controlsLayout->addWidget(alignRedLabel);
@@ -97,5 +99,4 @@ mainWindow::mainWindow(int ifGPU, QWidget *parent) : QMainWindow(parent), ui(new
 
 mainWindow::~mainWindow() {
     delete ui;
-    delete canvas;
 }

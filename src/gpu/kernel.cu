@@ -20,10 +20,12 @@ __constant__ float cohesionWeightGreen;
 __constant__ float CX;
 __constant__ float CY;
 
+// Oblicza długość wektora
 __device__ float magnitude(const float x, const float y) {
     return sqrtf(x * x + y * y);
 }
 
+// Skaluje wektor, aby miał wskazaną długość
 __device__ void setMagnitude(float* x, float* y, const float mag) {
     if (magnitude(*x, *y) > 0) {
         const float scale = mag / magnitude(*x, *y);
@@ -32,6 +34,7 @@ __device__ void setMagnitude(float* x, float* y, const float mag) {
     }
 }
 
+// Dopasowuje długość wektora, aby nie przekraczała maksymalnej długości
 __device__ void limit(float* x, float* y, const float max) {
     float size = magnitude(*x, *y);
     if (size > max) {
@@ -39,28 +42,34 @@ __device__ void limit(float* x, float* y, const float max) {
     }
 }
 
+// Oblicza odległość między punktami/wektorami
 __device__ float distance(const float x1, const float y1, const float x2, const float y2) {
     float dx = x1 - x2;
     float dy = y1 - y2;
     return sqrtf(dx*dx + dy*dy);
 }
 
+// Dodaje dwa wektory do siebie
 __device__ cudaVector add(const float x1, const float y1, const float x2, const float y2) {
     return cudaVector(x1 + x2, y1 + y2);
 }
 
+// Odejmuje od siebie dwa wektory
 __device__ cudaVector sub(const float x1, const float y1, const float x2, const float y2) {
     return cudaVector(x1 - x2, y1 - y2);
 }
 
+// Mnoży dwa wektory przez siebie
 __device__ cudaVector mul(const float x1, const float y1, const float x2, const float y2) {
     return cudaVector(x1 * x2, y1 * y2);
 }
 
+// Dzieli dwa wektory przez siebie
 __device__ cudaVector div(const float x1, const float y1, const float x2, const float y2) {
     return cudaVector(x1 / x2, y1 / y2);
 }
 
+// Dokonuje modyfikacji siły sterującej rybą na podstawie zachowania alignment/separation
 __device__ void normalizeSteerVector(cudaVector* steer, float* vx, float* vy, int fishIdx, int count) {
     if (count > 0) {
         steer->x /= static_cast<float>(count);
@@ -75,6 +84,7 @@ __device__ void normalizeSteerVector(cudaVector* steer, float* vx, float* vy, in
     }
 }
 
+// Dokonuje modyfikacji siły sterującej rybą na podstawie zachowania cohesion
 __device__ void normalizeCohesionSteerVector(cudaVector* steer, float* x, float* y, float* vx, float* vy, int fishIdx, int count) {
     if (count > 0) {
         steer->x /= static_cast<float>(count);
@@ -90,6 +100,7 @@ __device__ void normalizeCohesionSteerVector(cudaVector* steer, float* x, float*
     }
 }
 
+// Oblicza siłę sterującą rybą w celu ominięcia napotykanej przeszkody
 __device__ cudaVector avoidObstacle(float* x, float* y, float* vx, float* vy, const int fishIdx) {
     float vMag = magnitude(vx[fishIdx], vy[fishIdx]);
     if (vMag < 1e-6) {
@@ -108,6 +119,7 @@ __device__ cudaVector avoidObstacle(float* x, float* y, float* vx, float* vy, co
     return cudaVector(0, 0);
 }
 
+// Funkcja pomocnicza wykorzystywana w avoidObstacle w celu określenia, czy ruch ryby przecina obszar dookoła przeszkody
 __device__ int intersection(cudaVector rayStart, cudaVector rayDirection) {
     cudaVector toObstacle(CX - rayStart.x, CY - rayStart.y);
     float proj = rayDirection.x * toObstacle.x + rayDirection.y * toObstacle.y;
@@ -128,6 +140,11 @@ __device__ int intersection(cudaVector rayStart, cudaVector rayDirection) {
     return 0;
 }
 
+// Zmodyfikowany odpowiednik funkcji Flock na wersji CPU. Oblicza wypadkową siłę mającą działać w danej chwili na daną
+// rybę, lecz wszystkie obliczenia są w jednej pętli. Do tego funkcje te wywoływane są osobno dla każdej z
+// rozpatrywanych komórek reprezentujących sąsiedztwo danej ryby. Dla każdego zachowania separation/alignment/cohesion
+// siły pochodzące od interakcją z każdą z ryb z sąsiedztwa są sumowane w jedne wypadkowe, które są potem odpowiednio
+// normalizowane, aby końcowy efekt był równoważny z wersją CPU
 __device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay,
     const int fishIdx, const int fx, const int fy, const int* cellsStartIndexes, const int* cellsEndIndexes) {
     int gridIndex;
@@ -187,6 +204,7 @@ __device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, floa
     ay[fishIdx] = ali.y * aw + coh.y * cw + sep.y * sw + 2 * avoid.y;
 }
 
+// Modyfikuje parametry ruchu ryby
 __device__ void update(float* x, float* y, float* vx, float* vy, float* ax, float* ay, const int fishIdx) {
     const cudaVector velocity = add(vx[fishIdx], vy[fishIdx], ax[fishIdx], ay[fishIdx]);
     vx[fishIdx] = velocity.x;
@@ -200,6 +218,7 @@ __device__ void update(float* x, float* y, float* vx, float* vy, float* ax, floa
     borders(x, y, fishIdx);
 }
 
+// Modyfikuje położenie ryby, aby mieściła się w zakresie okna
 __device__ void borders(float* x, float* y, const int fishIdx) {
     if (x[fishIdx] > 2000) {
         x[fishIdx] = 0;
@@ -215,18 +234,7 @@ __device__ void borders(float* x, float* y, const int fishIdx) {
     }
 }
 
-__global__ void initializeDataKernel(int *ifRed, float *x, float *y, float *vx, float *vy, float *ax, float *ay, int N) {
-    const int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= N) return;
-    ax[i] = 0.0f;
-    ay[i] = 0.0f;
-    vx[i] = 0;
-    vy[i] = 0;
-    x[i] = i % 2000;
-    y[i] = i % 1200;
-    ifRed[i] = i % 2 == 0;
-}
-
+// Kernel wyznaczający dla każdej ryby numer indeksu komórki, w której w danej chwili się znajduje
 __global__ void splitFishesOnGridKernel(float* x, float* y, int N, int* gridIndexes) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
@@ -239,6 +247,8 @@ __global__ void splitFishesOnGridKernel(float* x, float* y, int N, int* gridInde
     gridIndexes[i] = 41 * idxY + idxX;
 }
 
+// Kernel resetujący wartości w tablicach reprezentujących początkowe i końcowe indeksy posortowanych ryb dla danej
+// komórki
 __global__ void resetCellsStartEndIndexesKernel(int* cellsStartIndexes, int* cellsEndIndexes, int cellsN) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= cellsN) return;
@@ -246,12 +256,16 @@ __global__ void resetCellsStartEndIndexesKernel(int* cellsStartIndexes, int* cel
     cellsEndIndexes[i] = -1;
 }
 
+// Kernel inicjalizujący wstępnie tablicę reprezentującej kolejność indeksów ryb posortowanych względem położeń w
+// komórkach
 __global__ void initializeFishesIndexesKernel(int* fishesIndexes, int N) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
     fishesIndexes[i] = i;
 }
 
+// Kernel wypełniający na podstawie tablicy indeksów ryb o zmodyfikowanej kolejności w odpowiedniej kolejności dane w
+// pomocniczych tablicach reprezentujących parametry ruchu ryb
 __global__ void initializeSortedParamsKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx, float* nvy,  int* nifRed, int* fishesIndexes, int N) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
@@ -262,6 +276,8 @@ __global__ void initializeSortedParamsKernel(int* ifRed, float* x, float* y, flo
     nifRed[i] = ifRed[fishesIndexes[i]];
 }
 
+// Kernel przenoszący dane z tablic pomocniczych do głównych tablic parametrów ruchu w celu zwrócenia tablic
+// posortowanych względem indeksów komórek, w których ryby się znajdują
 __global__ void sortParamsKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx, float* nvy, int* nifRed, int N) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
@@ -272,6 +288,9 @@ __global__ void sortParamsKernel(int* ifRed, float* x, float* y, float* vx, floa
     ifRed[i] = nifRed[i];
 }
 
+// Kernel wyznaczający początkowy i końcowy indeks zakresów ryb, które znajdują się wewnątrz danej komórki, posortowane
+// względem indeksów tych komórek. Zapisuje je w utworzonych w tym celu tablicach przy pomocy atomowych operacji
+// gwarantujących bezpieczeństwo synchronizacji danych
 __global__ void findCellsStartEndIndexesKernel(int* cellsStartIndexes, int* cellsEndIndexes, int* gridIndexes, int N) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
@@ -281,6 +300,7 @@ __global__ void findCellsStartEndIndexesKernel(int* cellsStartIndexes, int* cell
     atomicMax(&cellsEndIndexes[gridIndex], i + 1);
 }
 
+// Kernel obliczający siły, jakie mają działać na ryby, w celu ich odpowiedniego przesunięcia
 __global__ void computeForceKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N,
     const int* gridIndexes, const int* cellsStartIndexes, const int* cellsEndIndexes) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -293,12 +313,14 @@ __global__ void computeForceKernel(int* ifRed, float* x, float* y, float* vx, fl
     flock(ifRed, x, y, vx, vy, ax, ay, i, fx, fy, cellsStartIndexes, cellsEndIndexes);
 }
 
+// Kernel aktualizujący parametry ruchu ryb
 __global__ void updateFishKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
     update(x, y, vx, vy, ax, ay, i);
 }
 
+// Kernel kopiujący dane położenia i kąta nachylenia ryb do przygotowanego bufora do ich wizualizacji
 __global__ void copyToVBOKernel(float *vbo, int *ifRed, float *x, float *y, float *vx, float *vy, int N) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
@@ -308,6 +330,7 @@ __global__ void copyToVBOKernel(float *vbo, int *ifRed, float *x, float *y, floa
     vbo[4 * i + 3] = ifRed[i] == 1 ? 1.0f : 0.0f;
 }
 
+// Inicjalizuje wstępne parametry ruchu ryb
 void initializeFishesParams(cudaFishesParams* shoal) {
     for (int i = 0; i < COUNT; i++) {
         shoal->vx[i] = (rand() % 70 - 35) / 10.0f;
@@ -318,6 +341,8 @@ void initializeFishesParams(cudaFishesParams* shoal) {
     }
 }
 
+// Inicjalizuje wstępne parametry ruchu ryb, alokuje potrzebną pamięć i przenosi dane z CPU na GPU. Inicjalizuje
+// niezbędne stałe będące się znajdować w constant memory
 cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal) {
     cudaError_t status;
 
@@ -421,8 +446,9 @@ cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal)
     return status;
 }
 
+// Sprawdza czy nie pojawił się błąd. Jeżeli tak, zwalnia pamięć i przygotowuje funkcję ją wywołującą do zakończenia
+// pracy
 bool checkCudaError(cudaError_t cudaStatus, cudaArrayPtrs* dPtrs) {
-
     if (cudaStatus != cudaSuccess) {
         std::cerr << cudaGetErrorString(cudaStatus) << std::endl;
         freeMemoryOnGPU(dPtrs);
@@ -431,6 +457,8 @@ bool checkCudaError(cudaError_t cudaStatus, cudaArrayPtrs* dPtrs) {
     return true;
 }
 
+// Główna funkcja wywoływana w celu modyfikacji położeń ryb dla potrzeb renderowania klatki. W celu odpowiedniego
+// zsynchronizowania, aby dane były wiarygodne, prace wywoływanych kerneli są synchronizowane przed wywołanie następnych
 cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs* dPtrs, float cx, float cy, float swR,
     float awR, float cwR, float swG, float awG, float cwG) {
 
@@ -544,6 +572,7 @@ cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs*
     return status;
 }
 
+// Zwalnia zaalokowaną pamięć na GPU
 void freeMemoryOnGPU(cudaArrayPtrs* dPtrs) {
     cudaFree(dPtrs->x);
     cudaFree(dPtrs->y);

@@ -4,6 +4,7 @@
 
 #include "FishCanvasCPU.h"
 
+// Inicjalizuje dane początkowe obrazujące ruch ryb. Mierzy czas działania inicjalizacji
 FishCanvasCPU::FishCanvasCPU(QWidget *parent) : FishCanvas(parent) {
     auto start = std::chrono::high_resolution_clock::now();
     fishesOnGrid.resize(41);
@@ -27,6 +28,7 @@ FishCanvasCPU::FishCanvasCPU(QWidget *parent) : FishCanvas(parent) {
     timer->start(33);
 }
 
+// Zwalnia zaalokowaną pamięć. Mierzy czas zwalniania pamięci
 FishCanvasCPU::~FishCanvasCPU() {
     auto start = std::chrono::high_resolution_clock::now();
     for (auto& f : shoal) {
@@ -38,6 +40,7 @@ FishCanvasCPU::~FishCanvasCPU() {
     std::cout << "Memory release time: " << freeDataDuration / 1e9 << "s" << std::endl;
 }
 
+// Mierzy czas trwania renderowania się klatki. Na podstawie parametrów ryb wizualizuje ich położenie.
 void FishCanvasCPU::paintEvent(QPaintEvent *paint_event) {
     if (!firstFrame) {
         int duration = frameTimer.nsecsElapsed();
@@ -70,6 +73,7 @@ void FishCanvasCPU::paintEvent(QPaintEvent *paint_event) {
     }
 }
 
+// Dokonuje modyfikacji położeń ryb
 void FishCanvasCPU::onUpdate() {
     Fish::alignmentWeightRed = awR;
     Fish::alignmentWeightGreen = awG;

@@ -13,6 +13,8 @@ FishCanvas::FishCanvas(QWidget *parent) {
 FishCanvas::~FishCanvas() {
 }
 
+// Funkcje łączące się z zachowaniami sliderów i przycisku do wznawiania/zatrzymywania animacji
+
 void FishCanvas::setAlignmentWeightRed(int value) {
     awR = static_cast<float>(value) / 10.0f;
 }

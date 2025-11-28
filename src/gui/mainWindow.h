@@ -21,6 +21,7 @@ namespace Ui {
 
 QT_END_NAMESPACE
 
+// Klasa głównego okna aplikacji
 class mainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -31,6 +32,16 @@ public:
 private:
     Ui::mainWindow *ui;
     FishCanvas* canvas;
+    QWidget* centralWidget;
+    QWidget* controlsPanel;
+    QVBoxLayout* layout;
+    QHBoxLayout* controlsLayout;
+    QLabel* alignRedLabel;
+    QLabel* separationRedLabel;
+    QLabel* cohesionRedLabel;
+    QLabel* alignGreenLabel;
+    QLabel* separationGreenLabel;
+    QLabel* cohesionGreenLabel;
     QSlider* alignmentRedSlider;
     QSlider* separationRedSlider;
     QSlider* cohesionRedSlider;

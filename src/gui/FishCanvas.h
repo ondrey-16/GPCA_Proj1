@@ -13,7 +13,9 @@
 #include <QElapsedTimer>
 
 #define COUNT 10000
-
+/*
+ * Klasa, reprezentująca obiekt canvas. Po niej dziedziczą FishCanvasCPU i FishCanvasGPU
+ */
 class FishCanvas : public QOpenGLWidget {
     Q_OBJECT
 public:

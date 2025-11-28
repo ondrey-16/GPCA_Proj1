@@ -9,7 +9,9 @@
 #include "FishCanvas.h"
 #include "../model/Fish.h"
 
-
+/*
+ * Klasa reprezentująca canvas, dla którego wywoływane są algorytmy w wersji CPU
+ */
 class FishCanvasCPU : public FishCanvas {
 public:
     FishCanvasCPU(QWidget* parent = nullptr);

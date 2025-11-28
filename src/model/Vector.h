@@ -7,6 +7,10 @@
 
 #include <cmath>
 
+/*
+ * Klasa reprezentująca dwuwymiarowy wektor matematyczny wraz z najważniejszymi operacjami na nich.
+ */
+
 class Vector {
 public:
     float x;

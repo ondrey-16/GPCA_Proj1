@@ -9,6 +9,10 @@
 #include <vector>
 #include <cstdlib>
 
+/*
+ * Klasa reprezentująca rybę
+ */
+
 class Fish {
 public:
     Vector location;

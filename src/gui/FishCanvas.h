@@ -19,7 +19,7 @@
 class FishCanvas : public QOpenGLWidget {
     Q_OBJECT
 public:
-    FishCanvas(QWidget* parent = nullptr);
+    FishCanvas(int N, QWidget* parent = nullptr);
     ~FishCanvas();
     void setAlignmentWeightRed(int value);
     void setSeparationWeightRed(int value);

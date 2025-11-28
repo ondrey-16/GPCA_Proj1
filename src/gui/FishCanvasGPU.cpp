@@ -7,9 +7,9 @@
 
 // Tworzy obiekt Timer'a, a także inicjalizuje pamięć wykorzystywaną do obliczeń na GPU. Liczy czas działania
 // inicjalizacji
-FishCanvasGPU::FishCanvasGPU(QWidget *parent) : FishCanvas(parent) {
+FishCanvasGPU::FishCanvasGPU(int N, QWidget *parent) : FishCanvas(N, parent) {
     auto start = std::chrono::high_resolution_clock::now();
-    cudaError_t status = initializeMemoryOnGPU(&shoalPtrs, &initShoal);
+    cudaError_t status = initializeMemoryOnGPU(&shoalPtrs, &initShoal, N);
     if (status != cudaSuccess) {
         std::cerr << "Initializing data error " << cudaGetErrorString(status);
         freeMemoryOnGPU(&shoalPtrs);
@@ -183,7 +183,7 @@ void FishCanvasGPU::paintGL() {
     float cx = localPos.x();
     float cy = localPos.y();
 
-    cudaError_t status = updateShoalSceneOnGPU(shoalGPUResource, &shoalPtrs, cx, cy, swR, awR, cwR, swG, awG, cwG);
+    cudaError_t status = updateShoalSceneOnGPU(shoalGPUResource, &shoalPtrs, cx, cy, swR, awR, cwR, swG, awG, cwG, N);
     if (status != cudaSuccess) {
         std::cerr << "Updating data error " << cudaGetErrorString(status);
         freeMemoryOnGPU(&shoalPtrs);

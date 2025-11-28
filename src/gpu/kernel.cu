@@ -70,10 +70,10 @@ __device__ cudaVector div(const float x1, const float y1, const float x2, const 
 }
 
 // Dokonuje modyfikacji siły sterującej rybą na podstawie zachowania alignment/separation
-__device__ void normalizeSteerVector(cudaVector* steer, float* vx, float* vy, int fishIdx, int count) {
-    if (count > 0) {
-        steer->x /= static_cast<float>(count);
-        steer->y /= static_cast<float>(count);
+__device__ void normalizeSteerVector(cudaVector* steer, float* vx, float* vy, int fishIdx, int N) {
+    if (N > 0) {
+        steer->x /= static_cast<float>(N);
+        steer->y /= static_cast<float>(N);
         setMagnitude(&steer->x, &steer->y, maxVelocity);
         *steer = sub(steer->x, steer->y, vx[fishIdx], vy[fishIdx]);
         limit(&steer->x, &steer->y, maxForce);
@@ -85,10 +85,10 @@ __device__ void normalizeSteerVector(cudaVector* steer, float* vx, float* vy, in
 }
 
 // Dokonuje modyfikacji siły sterującej rybą na podstawie zachowania cohesion
-__device__ void normalizeCohesionSteerVector(cudaVector* steer, float* x, float* y, float* vx, float* vy, int fishIdx, int count) {
-    if (count > 0) {
-        steer->x /= static_cast<float>(count);
-        steer->y /= static_cast<float>(count);
+__device__ void normalizeCohesionSteerVector(cudaVector* steer, float* x, float* y, float* vx, float* vy, int fishIdx, int N) {
+    if (N > 0) {
+        steer->x /= static_cast<float>(N);
+        steer->y /= static_cast<float>(N);
         *steer = sub(steer->x, steer->y, x[fishIdx], y[fishIdx]);
         setMagnitude(&steer->x, &steer->y, maxVelocity);
         *steer = sub(steer->x, steer->y, vx[fishIdx], vy[fishIdx]);
@@ -152,7 +152,7 @@ __device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, floa
     cudaVector sep(0, 0);
     cudaVector ali(0, 0);
     cudaVector coh(0, 0);
-    int countSep = 0, countAli = 0, countCoh = 0;
+    int NSep = 0, NAli = 0, NCoh = 0;
     float aliCohNeighborDist = 50.0f;
     float sepNeighborDist = 25.0f;
     for (int j = fx > 0 ? fx - 1 : 0; j < 41 && j <= fx + 1; j++) {
@@ -174,14 +174,14 @@ __device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, floa
                 if (dist > 0 && dist < aliCohNeighborDist && ifRed[fishIdx] == ifRed[i]) {
                     partAli = add(partAli.x, partAli.y, vx[i], vy[i]);
                     partCoh = add(partCoh.x, partCoh.y, x[i], y[i]);
-                    countAli++;
-                    countCoh++;
+                    NAli++;
+                    NCoh++;
                     if (dist < sepNeighborDist && ifRed[fishIdx] == ifRed[i]) {
                         cudaVector diff = sub(x[fishIdx], y[fishIdx], x[i], y[i]);
                         diff.x /= dist;
                         diff.y /= dist;
                         partSep = add(partSep.x, partSep.y, diff.x, diff.y);
-                        countSep++;
+                        NSep++;
                     }
                 }
             }
@@ -190,9 +190,9 @@ __device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, floa
             coh = add(coh.x, coh.y, partCoh.x, partCoh.y);
         }
     }
-    normalizeSteerVector(&sep, vx, vy, fishIdx, countSep);
-    normalizeSteerVector(&ali, vx, vy, fishIdx, countAli);
-    normalizeCohesionSteerVector(&coh, x, y, vx, vy, fishIdx, countCoh);
+    normalizeSteerVector(&sep, vx, vy, fishIdx, NSep);
+    normalizeSteerVector(&ali, vx, vy, fishIdx, NAli);
+    normalizeCohesionSteerVector(&coh, x, y, vx, vy, fishIdx, NCoh);
 
     cudaVector avoid = avoidObstacle(x, y, vx, vy, fishIdx);
 
@@ -331,8 +331,8 @@ __global__ void copyToVBOKernel(float *vbo, int *ifRed, float *x, float *y, floa
 }
 
 // Inicjalizuje wstępne parametry ruchu ryb
-void initializeFishesParams(cudaFishesParams* shoal) {
-    for (int i = 0; i < COUNT; i++) {
+void initializeFishesParams(cudaFishesParams* shoal, int N) {
+    for (int i = 0; i < N; i++) {
         shoal->vx[i] = (rand() % 70 - 35) / 10.0f;
         shoal->vy[i] = (rand() % 70 - 35) / 10.0f;
         shoal->x[i] = rand() % 2000;
@@ -343,7 +343,7 @@ void initializeFishesParams(cudaFishesParams* shoal) {
 
 // Inicjalizuje wstępne parametry ruchu ryb, alokuje potrzebną pamięć i przenosi dane z CPU na GPU. Inicjalizuje
 // niezbędne stałe będące się znajdować w constant memory
-cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal) {
+cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal, int N) {
     cudaError_t status;
 
     float mf = 0.5f;
@@ -351,14 +351,14 @@ cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal)
     float cx = 0.0f;
     float cy = 0.0f;
 
-    initializeFishesParams(shoal);
+    initializeFishesParams(shoal, N);
 
     cudaMemcpyToSymbol(maxVelocity, &mv, sizeof(float));
     cudaMemcpyToSymbol(maxForce, &mf, sizeof(float));
     cudaMemcpyToSymbol(CX, &cx, sizeof(float));
     cudaMemcpyToSymbol(CY, &cy, sizeof(float));
 
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->gridIndexes), sizeof(int) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->gridIndexes), sizeof(int) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
@@ -370,76 +370,76 @@ cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal)
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->fishesIndexes), sizeof(int) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->fishesIndexes), sizeof(int) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ifRed), sizeof(int) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ifRed), sizeof(int) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->x), sizeof(float) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->x), sizeof(float) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->y), sizeof(float) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->y), sizeof(float) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->vx), sizeof(float) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->vx), sizeof(float) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->vy), sizeof(float) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->vy), sizeof(float) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ax), sizeof(float) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ax), sizeof(float) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ay), sizeof(float) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ay), sizeof(float) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nx), sizeof(float) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nx), sizeof(float) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ny), sizeof(float) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->ny), sizeof(float) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nvx), sizeof(float) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nvx), sizeof(float) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nvy), sizeof(float) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nvy), sizeof(float) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nifRed), sizeof(int) * COUNT);
+    status = cudaMalloc(reinterpret_cast<void**>(&dPtrs->nifRed), sizeof(int) * N);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
 
-    status = cudaMemcpy(dPtrs->x, shoal->x,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
+    status = cudaMemcpy(dPtrs->x, shoal->x,sizeof(float) * N, cudaMemcpyHostToDevice);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMemcpy(dPtrs->y, shoal->y,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
+    status = cudaMemcpy(dPtrs->y, shoal->y,sizeof(float) * N, cudaMemcpyHostToDevice);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMemcpy(dPtrs->vx, shoal->vx,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
+    status = cudaMemcpy(dPtrs->vx, shoal->vx,sizeof(float) * N, cudaMemcpyHostToDevice);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMemcpy(dPtrs->vy, shoal->vy,sizeof(float) * COUNT, cudaMemcpyHostToDevice);
+    status = cudaMemcpy(dPtrs->vy, shoal->vy,sizeof(float) * N, cudaMemcpyHostToDevice);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    status = cudaMemcpy(dPtrs->ifRed, shoal->ifRed,sizeof(int) * COUNT, cudaMemcpyHostToDevice);
+    status = cudaMemcpy(dPtrs->ifRed, shoal->ifRed,sizeof(int) * N, cudaMemcpyHostToDevice);
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
@@ -460,7 +460,7 @@ bool checkCudaError(cudaError_t cudaStatus, cudaArrayPtrs* dPtrs) {
 // Główna funkcja wywoływana w celu modyfikacji położeń ryb dla potrzeb renderowania klatki. W celu odpowiedniego
 // zsynchronizowania, aby dane były wiarygodne, prace wywoływanych kerneli są synchronizowane przed wywołanie następnych
 cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs* dPtrs, float cx, float cy, float swR,
-    float awR, float cwR, float swG, float awG, float cwG) {
+    float awR, float cwR, float swG, float awG, float cwG, int N) {
 
     cudaError_t status;
 
@@ -486,11 +486,11 @@ cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs*
     cudaMemcpyToSymbol(cohesionWeightGreen, &cwG, sizeof(float));
 
     dim3 blockDim(256);
-    dim3 gridDim((COUNT + blockDim.x - 1) / blockDim.x);
+    dim3 gridDim((N + blockDim.x - 1) / blockDim.x);
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    splitFishesOnGridKernel<<<gridDim, blockDim>>>(dPtrs->x, dPtrs->y, COUNT, dPtrs->gridIndexes);
+    splitFishesOnGridKernel<<<gridDim, blockDim>>>(dPtrs->x, dPtrs->y, N, dPtrs->gridIndexes);
     status = cudaDeviceSynchronize();
     if (!checkCudaError(status, dPtrs)) {
         return status;
@@ -501,24 +501,24 @@ cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs*
 
     start = std::chrono::high_resolution_clock::now();
 
-    initializeFishesIndexesKernel<<<gridDim, blockDim>>>(dPtrs->fishesIndexes, COUNT);
+    initializeFishesIndexesKernel<<<gridDim, blockDim>>>(dPtrs->fishesIndexes, N);
     status = cudaDeviceSynchronize();
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
 
     thrust::device_ptr<int> dFishesIndexes(dPtrs->fishesIndexes);
-    thrust::sort_by_key(dPtrs->gridIndexes, dPtrs->gridIndexes + COUNT, dFishesIndexes);
+    thrust::sort_by_key(dPtrs->gridIndexes, dPtrs->gridIndexes + N, dFishesIndexes);
 
     initializeSortedParamsKernel<<<gridDim, blockDim>>>(dPtrs->ifRed, dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy,
-        dPtrs->nx, dPtrs->ny, dPtrs->nvx, dPtrs->nvy, dPtrs->nifRed, dPtrs->fishesIndexes, COUNT);
+        dPtrs->nx, dPtrs->ny, dPtrs->nvx, dPtrs->nvy, dPtrs->nifRed, dPtrs->fishesIndexes, N);
     status = cudaDeviceSynchronize();
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
 
     sortParamsKernel<<<gridDim, blockDim>>>(dPtrs->ifRed, dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy,
-        dPtrs->nx, dPtrs->ny, dPtrs->nvx, dPtrs->nvy, dPtrs->nifRed, COUNT);
+        dPtrs->nx, dPtrs->ny, dPtrs->nvx, dPtrs->nvy, dPtrs->nifRed, N);
     status = cudaDeviceSynchronize();
     if (!checkCudaError(status, dPtrs)) {
         return status;
@@ -534,13 +534,13 @@ cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs*
     if (!checkCudaError(status, dPtrs)) {
         return status;
     }
-    findCellsStartEndIndexesKernel<<<gridDim, blockDim>>>(dPtrs->cellsStartIndexes, dPtrs->cellsEndIndexes, dPtrs->gridIndexes, COUNT);
+    findCellsStartEndIndexesKernel<<<gridDim, blockDim>>>(dPtrs->cellsStartIndexes, dPtrs->cellsEndIndexes, dPtrs->gridIndexes, N);
     end = std::chrono::high_resolution_clock::now();
     auto cellsStartDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     start = std::chrono::high_resolution_clock::now();
     computeForceKernel<<<gridDim, blockDim>>>(dPtrs->ifRed, dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, dPtrs->ax,
-        dPtrs->ay, COUNT, dPtrs->gridIndexes, dPtrs->cellsStartIndexes, dPtrs->cellsEndIndexes);
+        dPtrs->ay, N, dPtrs->gridIndexes, dPtrs->cellsStartIndexes, dPtrs->cellsEndIndexes);
     status = cudaDeviceSynchronize();
     if (!checkCudaError(status, dPtrs)) {
         return status;
@@ -549,7 +549,7 @@ cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs*
     auto computeForcesDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     start = std::chrono::high_resolution_clock::now();
-    updateFishKernel<<<gridDim, blockDim>>>(dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, dPtrs->ax, dPtrs->ay, COUNT);
+    updateFishKernel<<<gridDim, blockDim>>>(dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, dPtrs->ax, dPtrs->ay, N);
     status = cudaDeviceSynchronize();
     if (!checkCudaError(status, dPtrs)) {
         return status;
@@ -558,7 +558,7 @@ cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs*
     auto updateDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     start = std::chrono::high_resolution_clock::now();
-    copyToVBOKernel<<<gridDim, blockDim>>>(vbo, dPtrs->ifRed, dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, COUNT);
+    copyToVBOKernel<<<gridDim, blockDim>>>(vbo, dPtrs->ifRed, dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, N);
     end = std::chrono::high_resolution_clock::now();
     auto copyingDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 

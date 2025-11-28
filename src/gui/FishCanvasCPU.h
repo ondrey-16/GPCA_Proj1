@@ -14,7 +14,7 @@
  */
 class FishCanvasCPU : public FishCanvas {
 public:
-    FishCanvasCPU(QWidget* parent = nullptr);
+    FishCanvasCPU(int N, QWidget* parent = nullptr);
     ~FishCanvasCPU();
 private:
     void paintEvent(QPaintEvent *) override;

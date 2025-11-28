@@ -5,7 +5,7 @@
 #include "FishCanvasCPU.h"
 
 // Inicjalizuje dane początkowe obrazujące ruch ryb. Mierzy czas działania inicjalizacji
-FishCanvasCPU::FishCanvasCPU(QWidget *parent) : FishCanvas(parent) {
+FishCanvasCPU::FishCanvasCPU(int N, QWidget *parent) : FishCanvas(N, parent) {
     auto start = std::chrono::high_resolution_clock::now();
     fishesOnGrid.resize(41);
     for (int i = 0; i < 41; i++) {

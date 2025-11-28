@@ -6,8 +6,8 @@
 
 #include <iostream>
 
-FishCanvas::FishCanvas(QWidget *parent) {
-    N = COUNT;
+FishCanvas::FishCanvas(int N, QWidget *parent) {
+    this->N = N;
 }
 
 FishCanvas::~FishCanvas() {

@@ -7,15 +7,15 @@
 
 #include "cuda_runtime.h"
 
-#define COUNT 10000
+#define MAXFISHCOUNT 30000
 #define CELLSNUM 1025
 
 struct cudaFishesParams {
-    float x[COUNT];
-    float y[COUNT];
-    float vx[COUNT];
-    float vy[COUNT];
-    int ifRed[COUNT];
+    float x[MAXFISHCOUNT];
+    float y[MAXFISHCOUNT];
+    float vx[MAXFISHCOUNT];
+    float vy[MAXFISHCOUNT];
+    int ifRed[MAXFISHCOUNT];
     cudaFishesParams() {}
 };
 
@@ -58,9 +58,9 @@ __device__ cudaVector add(float x1, float y1, float x2, float y2);
 __device__ cudaVector sub(float x1, float y1, float x2, float y2);
 __device__ cudaVector mul(float x1, float y1, float x2, float y2);
 __device__ cudaVector div(float x1, float y1, float x2, float y2);
-__device__ void normalizeSteerVector(cudaVector* steer, float* vx, float* vy, int fishIdx, int count);
+__device__ void normalizeSteerVector(cudaVector* steer, float* vx, float* vy, int fishIdx, int N);
 __device__ void normalizeCohesionSteerVector(cudaVector* steer, float* x, float* y, float* vx, float* vy, int fishIdx,
-    int count);
+    int N);
 __device__ cudaVector avoidObstacle(float* x, float* y, float* vx, float* vy, int fishIdx);
 __device__ int intersection(cudaVector rayStart, cudaVector rayDirection);
 __device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int fishIdx, int fx,
@@ -75,16 +75,16 @@ __global__ void initializeFishesIndexesKernel(int* fishesIndexes, int N);
 __global__ void initializeSortedParamsKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* nx, float* ny,
     float* nvx, float* nvy, int* nifRed, int* fishesIndexes, int N);
 __global__ void sortParamsKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* nx, float* ny, float* nvx,
-    float* nvy, int N);
+    float* nvy, int* nifRed, int N);
 __global__ void computeForceKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N,
     const int* gridIndexes, const int* cellsStartIndexes, const int* cellsEndIndexes);
 __global__ void updateFishKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N);
 __global__ void copyToVBOKernel(float* vbo, int* ifRed, float* x, float* y, float* vx, float* vy, int N);
 
-void initializeFishesParams(cudaFishesParams* shoal);
-cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal);
+void initializeFishesParams(cudaFishesParams* shoal, int N);
+cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal, int N);
 cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs* dPtrs, float cx, float cy, float swR,
-    float awR, float cwR, float swG, float awG, float cwG);
+    float awR, float cwR, float swG, float awG, float cwG, int N);
 bool checkCudaError(cudaError_t cudaStatus, cudaArrayPtrs* dPtrs);
 void freeMemoryOnGPU(cudaArrayPtrs* dPtrs);
 

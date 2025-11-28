@@ -26,7 +26,7 @@ class mainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    explicit mainWindow(int ifCPU, QWidget *parent = nullptr);
+    explicit mainWindow(int N, int ifCPU, QWidget *parent = nullptr);
     ~mainWindow() override;
 
 private:

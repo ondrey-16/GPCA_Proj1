@@ -11,7 +11,7 @@
 // Tworzy układ okna składający się z sześciu sliderów do manipulowania parametrami zachowań ryb, przycisk do
 // zatrzymywania/wznawiania animacji oraz canvas, wewnątrz którego renderowany jest układ ryb i to on wywołuje algorytmy
 // do modyfikowania położeń ryb na ekranie. Na podstawie parametru ifGPU wybiera, jaki canvas jest tworzony.
-mainWindow::mainWindow(int ifGPU, QWidget *parent) : QMainWindow(parent), ui(new Ui::mainWindow), ifGPU(ifGPU) {
+mainWindow::mainWindow(int N, int ifGPU, QWidget *parent) : QMainWindow(parent), ui(new Ui::mainWindow), ifGPU(ifGPU) {
     ui->setupUi(this);
     this->setWindowTitle("Shoal Fish Animation");
     this->resize(2000, 1200);
@@ -67,10 +67,10 @@ mainWindow::mainWindow(int ifGPU, QWidget *parent) : QMainWindow(parent), ui(new
 
     layout->addWidget(controlsPanel);
     if (ifGPU) {
-        canvas = new FishCanvasGPU(this);
+        canvas = new FishCanvasGPU(N, this);
     }
     else {
-        canvas = new FishCanvasCPU(this);
+        canvas = new FishCanvasCPU(N, this);
     }
     layout->addWidget(canvas, 1);
 

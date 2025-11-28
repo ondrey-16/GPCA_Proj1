@@ -18,7 +18,7 @@
 class FishCanvasGPU : public FishCanvas, protected QOpenGLFunctions_3_3_Core{
     Q_OBJECT
 public:
-    FishCanvasGPU(QWidget* parent = nullptr);
+    FishCanvasGPU(int N, QWidget* parent = nullptr);
     ~FishCanvasGPU();
 private:
     void initializeGL();

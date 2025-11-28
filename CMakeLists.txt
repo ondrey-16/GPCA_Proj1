@@ -10,9 +10,9 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
+find_package(Qt5 REQUIRED COMPONENTS Widgets OpenGL)
+set(SFML_STATIC_LIBRARIES FALSE)
 find_package(SFML 2.6 COMPONENTS graphics window system REQUIRED)
-find_package(Qt5 REQUIRED COMPONENTS OpenGL)
 
 add_executable(Shoal_Fish_Animation
         src/main.cpp
@@ -31,6 +31,20 @@ add_executable(Shoal_Fish_Animation
         src/gui/FishCanvasGPU.h
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Widgets)
-target_link_libraries(${PROJECT_NAME} PRIVATE sfml-graphics sfml-window sfml-system)
-target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::OpenGL)
+set_target_properties(${PROJECT_NAME} PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+)
+
+if (WIN32)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+            WIN32_EXECUTABLE ON
+    )
+endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+        Qt5::Widgets
+        Qt5::OpenGL
+        sfml-graphics
+        sfml-window
+        sfml-system
+)

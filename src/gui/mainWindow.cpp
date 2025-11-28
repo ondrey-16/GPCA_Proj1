@@ -15,6 +15,7 @@ mainWindow::mainWindow(int N, int ifGPU, QWidget *parent) : QMainWindow(parent),
     ui->setupUi(this);
     this->setWindowTitle("Shoal Fish Animation");
     this->resize(2000, 1200);
+    this->setFixedSize(2000, 1200);
 
     centralWidget = new QWidget(this);
     this->setCentralWidget(centralWidget);

@@ -205,7 +205,7 @@ __device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, floa
 }
 
 // Modyfikuje parametry ruchu ryby
-__device__ void update(float* x, float* y, float* vx, float* vy, float* ax, float* ay, const int fishIdx) {
+__device__ void update(float* x, float* y, float* vx, float* vy, float* ax, float* ay, const int fishIdx, int width, int height) {
     const cudaVector velocity = add(vx[fishIdx], vy[fishIdx], ax[fishIdx], ay[fishIdx]);
     vx[fishIdx] = velocity.x;
     vy[fishIdx] = velocity.y;
@@ -215,22 +215,22 @@ __device__ void update(float* x, float* y, float* vx, float* vy, float* ax, floa
     y[fishIdx] = location.y;
     ax[fishIdx] = 0.0f;
     ay[fishIdx] = 0.0f;
-    borders(x, y, fishIdx);
+    borders(x, y, fishIdx, width, height);
 }
 
 // Modyfikuje położenie ryby, aby mieściła się w zakresie okna
-__device__ void borders(float* x, float* y, const int fishIdx) {
-    if (x[fishIdx] > 2000) {
+__device__ void borders(float* x, float* y, int fishIdx, int width, int height) {
+    if (x[fishIdx] > width) {
         x[fishIdx] = 0;
     }
     else if (x[fishIdx] <= 0) {
-        x[fishIdx]= 2000;
+        x[fishIdx]= width;
     }
-    if (y[fishIdx] > 1200) {
+    if (y[fishIdx] > height) {
         y[fishIdx]= 0;
     }
     else if (y[fishIdx] <= 0) {
-        y[fishIdx] = 1200;
+        y[fishIdx] = height;
     }
 }
 
@@ -314,10 +314,10 @@ __global__ void computeForceKernel(int* ifRed, float* x, float* y, float* vx, fl
 }
 
 // Kernel aktualizujący parametry ruchu ryb
-__global__ void updateFishKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N) {
+__global__ void updateFishKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int width, int height) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
-    update(x, y, vx, vy, ax, ay, i);
+    update(x, y, vx, vy, ax, ay, i, width, height);
 }
 
 // Kernel kopiujący dane położenia i kąta nachylenia ryb do przygotowanego bufora do ich wizualizacji
@@ -331,27 +331,27 @@ __global__ void copyToVBOKernel(float *vbo, int *ifRed, float *x, float *y, floa
 }
 
 // Inicjalizuje wstępne parametry ruchu ryb
-void initializeFishesParams(cudaFishesParams* shoal, int N) {
+void initializeFishesParams(cudaFishesParams* shoal, int N, int width, int height) {
     for (int i = 0; i < N; i++) {
         shoal->vx[i] = (rand() % 70 - 35) / 10.0f;
         shoal->vy[i] = (rand() % 70 - 35) / 10.0f;
-        shoal->x[i] = rand() % 2000;
-        shoal->y[i] = rand() % 1200;
+        shoal->x[i] = rand() % width;
+        shoal->y[i] = rand() % height;
         shoal->ifRed[i] = i % 2 == 0;
     }
 }
 
 // Inicjalizuje wstępne parametry ruchu ryb, alokuje potrzebną pamięć i przenosi dane z CPU na GPU. Inicjalizuje
 // niezbędne stałe będące się znajdować w constant memory
-cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal, int N) {
+cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal, int N, int width, int height) {
     cudaError_t status;
 
-    float mf = 0.5f;
+    float mf = 0.2f;
     float mv = 3.5f;
     float cx = 0.0f;
     float cy = 0.0f;
 
-    initializeFishesParams(shoal, N);
+    initializeFishesParams(shoal, N, width, height);
 
     cudaMemcpyToSymbol(maxVelocity, &mv, sizeof(float));
     cudaMemcpyToSymbol(maxForce, &mf, sizeof(float));
@@ -460,7 +460,7 @@ bool checkCudaError(cudaError_t cudaStatus, cudaArrayPtrs* dPtrs) {
 // Główna funkcja wywoływana w celu modyfikacji położeń ryb dla potrzeb renderowania klatki. W celu odpowiedniego
 // zsynchronizowania, aby dane były wiarygodne, prace wywoływanych kerneli są synchronizowane przed wywołanie następnych
 cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs* dPtrs, float cx, float cy, float swR,
-    float awR, float cwR, float swG, float awG, float cwG, int N) {
+    float awR, float cwR, float swG, float awG, float cwG, int N, int width, int height) {
 
     cudaError_t status;
 
@@ -549,7 +549,8 @@ cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs*
     auto computeForcesDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
     start = std::chrono::high_resolution_clock::now();
-    updateFishKernel<<<gridDim, blockDim>>>(dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, dPtrs->ax, dPtrs->ay, N);
+    updateFishKernel<<<gridDim, blockDim>>>(dPtrs->x, dPtrs->y, dPtrs->vx, dPtrs->vy, dPtrs->ax, dPtrs->ay, N,
+        width, height);
     status = cudaDeviceSynchronize();
     if (!checkCudaError(status, dPtrs)) {
         return status;

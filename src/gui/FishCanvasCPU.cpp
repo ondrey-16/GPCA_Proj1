@@ -115,7 +115,7 @@ void FishCanvasCPU::onUpdate() {
         fish->applyForce(shoalPart, cx, cy);
     }
     for (auto& fish : shoal) {
-        fish->update();
+        fish->update(canvasWidth, canvasHeight);
     }
 
     update();

@@ -28,6 +28,7 @@ public:
     void setSeparationWeightGreen(int value);
     void setCohesionWeightGreen(int value);
     void toggleAnimation();
+    void onResize(int w, int h);
 protected:
     QElapsedTimer frameTimer;
     bool firstFrame = true;
@@ -41,6 +42,8 @@ protected:
     float awG;
     float swG;
     float cwG;
+    int canvasWidth;
+    int canvasHeight;
 };
 
 

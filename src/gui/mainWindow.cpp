@@ -1,7 +1,3 @@
-//
-// Created by ondrey on 31.10.2025.
-//
-
 #include "mainWindow.h"
 
 #include "FishCanvasGPU.h"
@@ -15,7 +11,6 @@ mainWindow::mainWindow(int N, int ifGPU, QWidget *parent) : QMainWindow(parent),
     ui->setupUi(this);
     this->setWindowTitle("Shoal Fish Animation");
     this->resize(2000, 1200);
-    this->setFixedSize(2000, 1200);
 
     centralWidget = new QWidget(this);
     this->setCentralWidget(centralWidget);
@@ -90,14 +85,21 @@ mainWindow::mainWindow(int N, int ifGPU, QWidget *parent) : QMainWindow(parent),
     connect(animationButton, &QPushButton::clicked,
             canvas, &FishCanvas::toggleAnimation);
 
-    alignmentRedSlider->setValue(10);
-    separationRedSlider->setValue(16);
-    cohesionRedSlider->setValue(8);
-    alignmentGreenSlider->setValue(10);
-    separationGreenSlider->setValue(16);
-    cohesionGreenSlider->setValue(8);
+    alignmentRedSlider->setValue(6);
+    separationRedSlider->setValue(10);
+    cohesionRedSlider->setValue(4);
+    alignmentGreenSlider->setValue(6);
+    separationGreenSlider->setValue(10);
+    cohesionGreenSlider->setValue(4);
 }
 
 mainWindow::~mainWindow() {
     delete ui;
+}
+
+void mainWindow::resizeEvent(QResizeEvent *event) {
+        QMainWindow::resizeEvent(event);
+        if (canvas != nullptr) {
+                canvas->onResize(this->width(), this->height());
+        }
 }

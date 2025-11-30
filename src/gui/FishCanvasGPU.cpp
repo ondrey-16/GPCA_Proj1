@@ -9,7 +9,7 @@
 // inicjalizacji
 FishCanvasGPU::FishCanvasGPU(int N, QWidget *parent) : FishCanvas(N, parent) {
     auto start = std::chrono::high_resolution_clock::now();
-    cudaError_t status = initializeMemoryOnGPU(&shoalPtrs, &initShoal, N);
+    cudaError_t status = initializeMemoryOnGPU(&shoalPtrs, &initShoal, N, canvasWidth, canvasHeight);
     if (status != cudaSuccess) {
         std::cerr << "Initializing data error " << cudaGetErrorString(status);
         freeMemoryOnGPU(&shoalPtrs);
@@ -175,7 +175,7 @@ void FishCanvasGPU::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT);
     shaderProgram->bind();
     QMatrix4x4 proj;
-    proj.ortho(0.0f, (float)width(), (float)height(), 0.0f, -1.0f, 1.0f);
+    proj.ortho(0.0f, (float)canvasWidth, (float)canvasHeight, 0.0f, -1.0f, 1.0f);
     shaderProgram->setUniformValue("projMatrix", proj);
 
     QPoint globalPos = QCursor::pos();
@@ -183,7 +183,8 @@ void FishCanvasGPU::paintGL() {
     float cx = localPos.x();
     float cy = localPos.y();
 
-    cudaError_t status = updateShoalSceneOnGPU(shoalGPUResource, &shoalPtrs, cx, cy, swR, awR, cwR, swG, awG, cwG, N);
+    cudaError_t status = updateShoalSceneOnGPU(shoalGPUResource, &shoalPtrs, cx, cy, swR, awR, cwR, swG, awG, cwG, N,
+        canvasWidth, canvasHeight);
     if (status != cudaSuccess) {
         std::cerr << "Updating data error " << cudaGetErrorString(status);
         freeMemoryOnGPU(&shoalPtrs);

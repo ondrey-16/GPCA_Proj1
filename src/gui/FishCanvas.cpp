@@ -8,6 +8,8 @@
 
 FishCanvas::FishCanvas(int N, QWidget *parent) {
     this->N = N;
+    this->canvasWidth = parent->width();
+    this->canvasHeight = parent->height();
 }
 
 FishCanvas::~FishCanvas() {
@@ -49,4 +51,9 @@ void FishCanvas::toggleAnimation() {
     else {
         timer->start(33);
     }
+}
+
+void FishCanvas::onResize(int w, int h) {
+    canvasWidth = w;
+    canvasHeight = h;
 }

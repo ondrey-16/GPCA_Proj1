@@ -30,6 +30,7 @@ public:
     ~mainWindow() override;
 
 private:
+    void resizeEvent(QResizeEvent* event) override;
     Ui::mainWindow *ui;
     FishCanvas* canvas;
     QWidget* centralWidget;

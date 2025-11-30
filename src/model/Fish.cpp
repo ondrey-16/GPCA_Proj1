@@ -135,12 +135,12 @@ void Fish::applyForce(const std::vector<Fish*> &fishes, float& cx, float& cy) {
 }
 
 // Aktualizuje parametry ruchu ryby
-void Fish::update() {
+void Fish::update(int width, int height) {
     velocity = velocity + acceleration;
     velocity.limit(maxVelocity);
     location = location + velocity;
     acceleration = acceleration * 0.0f;
-    borders();
+    borders(width, height);
 }
 
 // Na podstawie ryb znajdujących się w bezpośrednim otoczeniu danej ryby obliczane są siły liczone na podstawie
@@ -157,17 +157,17 @@ void Fish::flock(const std::vector<Fish*> &fishes, float& cx, float& cy) {
 }
 
 // Modyfikuje położenie ryby, aby mieściła się w zakresie okna
-void Fish::borders() {
-    if (location.x > 2000) {
+void Fish::borders(int width, int height) {
+    if (location.x > width) {
         location.x = 0;
     }
     else if (location.x < 0) {
-        location.x = 2000;
+        location.x = width;
     }
-    if (location.y > 1200) {
+    if (location.y > height) {
         location.y = 0;
     }
     else if (location.y < 0) {
-        location.y = 1200;
+        location.y = height;
     }
 }

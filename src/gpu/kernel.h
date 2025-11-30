@@ -65,8 +65,9 @@ __device__ cudaVector avoidObstacle(float* x, float* y, float* vx, float* vy, in
 __device__ int intersection(cudaVector rayStart, cudaVector rayDirection);
 __device__ void flock(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int fishIdx, int fx,
     int fy, const int* cellsStartIndexes, const int* cellsEndIndexes);
-__device__ void update(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int fishIdx);
-__device__ void borders(float* x, float* y, int fishIdx);
+__device__ void update(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int fishIdx, int width,
+    int height);
+__device__ void borders(float* x, float* y, int fishIdx, int width, int height);
 
 __global__ void splitFishesOnGridKernel(float* x, float* y, int N, int* gridIndexes);
 __global__ void resetCellsStartEndIndexesKernel(int* cellsStartIndexes, int* cellsEndIndexes, int cellsN);
@@ -78,13 +79,14 @@ __global__ void sortParamsKernel(int* ifRed, float* x, float* y, float* vx, floa
     float* nvy, int* nifRed, int N);
 __global__ void computeForceKernel(int* ifRed, float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N,
     const int* gridIndexes, const int* cellsStartIndexes, const int* cellsEndIndexes);
-__global__ void updateFishKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N);
+__global__ void updateFishKernel(float* x, float* y, float* vx, float* vy, float* ax, float* ay, int N, int width,
+    int height);
 __global__ void copyToVBOKernel(float* vbo, int* ifRed, float* x, float* y, float* vx, float* vy, int N);
 
-void initializeFishesParams(cudaFishesParams* shoal, int N);
-cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal, int N);
+void initializeFishesParams(cudaFishesParams* shoal, int N, int width, int height);
+cudaError_t initializeMemoryOnGPU(cudaArrayPtrs* dPtrs, cudaFishesParams* shoal, int N, int width, int height);
 cudaError_t updateShoalSceneOnGPU(cudaGraphicsResource_t cudaVBO, cudaArrayPtrs* dPtrs, float cx, float cy, float swR,
-    float awR, float cwR, float swG, float awG, float cwG, int N);
+    float awR, float cwR, float swG, float awG, float cwG, int N, int width, int height);
 bool checkCudaError(cudaError_t cudaStatus, cudaArrayPtrs* dPtrs);
 void freeMemoryOnGPU(cudaArrayPtrs* dPtrs);
 

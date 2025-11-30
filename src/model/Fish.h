@@ -35,9 +35,9 @@ public:
     Vector avoidObstacle(float& cx, float& cy) const;
     bool intersection(float& cx, float& cy, Vector& rayStart, Vector& rayDirection) const;
     void applyForce(const std::vector<Fish*>& fishes, float& cx, float& cy);
-    void update();
+    void update(int width, int height);
     void flock(const std::vector<Fish*>& fishes, float& cx, float& cy);
-    void borders();
+    void borders(int width, int height);
 };
 
 
